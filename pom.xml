@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.ecp</groupId>
+    <artifactId>GradeSync</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>23</maven.compiler.release>
+        <exec.mainClass>com.ecp.gradesync.Main</exec.mainClass>
+        <google.api.client.version>1.32.1</google.api.client.version> <!-- Define versions as properties for consistency -->
+        <google.api.services.classroom.version>v1-rev20250420-2.0.0</google.api.services.classroom.version>
+        <!-- The google-auth-library-oauth2-http is good for other scenarios,
+             but not the specific desktop browser flow the quickstart uses.
+             We will keep it as you wish, but the core auth will use the others. -->
+        <google.auth.library.oauth2.http.version>1.35.0</google.auth.library.oauth2.http.version>
+    </properties>
+    <dependencies>
+        <dependency>
+            <groupId>com.google.api-client</groupId>
+            <artifactId>google-api-client</artifactId>
+            <version>${google.api.client.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.apis</groupId>
+            <artifactId>google-api-services-classroom</artifactId>
+            <version>${google.api.services.classroom.version}</version>
+        </dependency>
+        <!-- NEW DEPENDENCIES REQUIRED FOR DESKTOP APP OAUTH (QUICKSTART METHOD) -->
+        <dependency>
+            <groupId>com.google.oauth-client</groupId>
+            <artifactId>google-oauth-client-java6</artifactId>
+            <version>${google.api.client.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.oauth-client</groupId>
+            <artifactId>google-oauth-client-jetty</artifactId>
+            <version>${google.api.client.version}</version>
+        </dependency>
+        <!-- Your original dependency, kept as per your request,
+             though not directly used by the Quickstart's desktop OAuth flow -->
+        <dependency>
+            <groupId>com.google.auth</groupId>
+            <artifactId>google-auth-library-oauth2-http</artifactId>
+            <version>${google.auth.library.oauth2.http.version}</version>
+        </dependency>
+    </dependencies>
+</project>
