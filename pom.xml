@@ -7,9 +7,9 @@
     <packaging>jar</packaging>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>17</maven.compiler.source> <!-- Recommend Java 17 LTS for stability -->
+        <maven.compiler.source>17</maven.compiler.source> <!-- Recommend Java 17 LTS -->
         <maven.compiler.target>17</maven.compiler.target> <!-- Ensure your JDK is 17 or newer -->
-        <exec.mainClass>gradesync.Main</exec.mainClass> <!-- Updated for 'gradesync' package -->
+        <exec.mainClass>gradesync.Main</exec.mainClass>
 
         <!-- Define consistent versions for Google API client libraries -->
         <google.api.client.version>1.32.1</google.api.client.version>
@@ -28,15 +28,15 @@
             <version>${google.api.services.classroom.version}</version>
         </dependency>
 
-        <!-- ALTERNATIVE JSON PARSING: Using Gson instead of Jackson -->
+        <!-- Using Gson for JSON parsing -->
         <dependency>
             <groupId>com.google.http-client</groupId>
             <artifactId>google-http-client-gson</artifactId>
-            <version>1.42.0</version>
+            <version>1.47.0</version>
             <type>jar</type>
         </dependency>
 
-        <!-- THESE ARE ABSOLUTELY REQUIRED FOR DESKTOP APP OAUTH (Browser-based flow using LocalServerReceiver) -->
+        <!-- REQUIRED FOR DESKTOP APP OAUTH (Browser-based flow using LocalServerReceiver) -->
         <dependency>
             <groupId>com.google.oauth-client</groupId>
             <artifactId>google-oauth-client-java6</artifactId>
@@ -48,8 +48,7 @@
             <version>${google.api.client.version}</version>
         </dependency>
 
-        <!-- Your original dependency, kept as per your request.
-             It's for different auth flows, not this desktop app quickstart one. -->
+        <!-- Your original dependency, kept -->
         <dependency>
             <groupId>com.google.auth</groupId>
             <artifactId>google-auth-library-oauth2-http</artifactId>
