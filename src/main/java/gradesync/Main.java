@@ -1,21 +1,40 @@
-package gradesync; // Changed package to gradesync
+package gradesync; // <--- MAKE SURE THIS MATCHES YOUR PACKAGE NAME
 
-import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.services.classroom.Classroom;
+import com.google.api.services.classroom.model.Course;
+import com.google.api.services.classroom.model.ListCoursesResponse;
+
 import java.io.IOException;
-import java.security.GeneralSecurityException;
+import java.util.List;
 
 public class Main {
-    public static void main(String[] args) throws IOException, GeneralSecurityException {
-        AuthManager authManager = new AuthManager();
-        Credential credential = authManager.authorize();
+    public static void main(String[] args) {
+        System.out.println("Welcome to the Google Classroom Grade Tracker (API Version)");
+        System.out.println("----------------------------------------------------------");
 
-        if (credential != null) {
-            System.out.println("DEBUG: Authentication successful in Main. Token: " + credential.getAccessToken());
-            System.out.println("Successfully signed in with Google!");
-            // Proceed with main application logic here
-        } else {
-            System.out.println("ERROR: Authentication failed. Please check the console for more details.");
-            // Handle authentication failure, perhaps exit or prompt user to retry
+        try {
+            Classroom service = AuthManager.getClassroomService();
+
+            System.out.println("\nListing all courses:");
+            ListCoursesResponse response = service.courses().list()
+                .setPageSize(10)
+                .execute();
+            List<Course> courses = response.getCourses();
+            if (courses == null || courses.isEmpty()) {
+                System.out.println("No courses found.");
+            } else {
+                for (Course course : courses) {
+                    System.out.printf("  Course ID: %s, Name: %s, Status: %s\n",
+                                      course.getId(), course.getName(), course.getCourseState());
+                }
+            }
+
+        } catch (IOException e) {
+            System.err.println("An error occurred during API interaction: " + e.getMessage());
+            e.printStackTrace();
+        } catch (Exception e) {
+            System.err.println("An unexpected error occurred: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }
