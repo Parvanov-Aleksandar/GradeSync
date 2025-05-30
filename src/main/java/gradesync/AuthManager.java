@@ -1,4 +1,4 @@
-package gradesync; // <--- MAKE SURE THIS MATCHES YOUR PACKAGE NAME
+package gradesync; // <--- CORRECTED PACKAGE NAME
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
@@ -8,7 +8,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.client.json.gson.GsonFactory; // Using GsonFactory as per your pom.xml
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.classroom.Classroom;
 import com.google.api.services.classroom.ClassroomScopes;
@@ -78,10 +78,10 @@ public class AuthManager {
                 .setDataStoreFactory(DATA_STORE_FACTORY)
                 .setAccessType("offline")
                 .build();
-        
+
         Credential credential = new AuthorizationCodeInstalledApp(
             flow, new LocalServerReceiver()).authorize("user");
-        
+
         System.out.println(
             "Credentials saved to " + DATA_STORE_DIR.getAbsolutePath());
         return credential;

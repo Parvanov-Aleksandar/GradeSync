@@ -7,9 +7,9 @@
     <packaging>jar</packaging>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>17</maven.compiler.source> <!-- Recommend Java 17 LTS -->
-        <maven.compiler.target>17</maven.compiler.target> <!-- Ensure your JDK is 17 or newer -->
-        <exec.mainClass>gradesync.Main</exec.mainClass>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <exec.mainClass>gradesync.Main</exec.mainClass> <!-- Ensure this matches your package: com.ecp.gradesync.Main -->
 
         <!-- Define consistent versions for Google API client libraries -->
         <google.api.client.version>1.32.1</google.api.client.version>
@@ -28,7 +28,7 @@
             <version>${google.api.services.classroom.version}</version>
         </dependency>
 
-        <!-- Using Gson for JSON parsing -->
+        <!-- Using Gson for JSON parsing (good addition, was implicitly pulled by Jackson previously) -->
         <dependency>
             <groupId>com.google.http-client</groupId>
             <artifactId>google-http-client-gson</artifactId>
@@ -36,7 +36,7 @@
             <type>jar</type>
         </dependency>
 
-        <!-- REQUIRED FOR DESKTOP APP OAUTH (Browser-based flow using LocalServerReceiver) -->
+        <!-- THESE ARE THE CRUCIAL DEPENDENCIES FOR DESKTOP APP OAUTH (Browser-based flow) -->
         <dependency>
             <groupId>com.google.oauth-client</groupId>
             <artifactId>google-oauth-client-java6</artifactId>
@@ -48,7 +48,7 @@
             <version>${google.api.client.version}</version>
         </dependency>
 
-        <!-- Your original dependency, kept -->
+        <!-- Your original dependency, kept as per your request, though not directly used by the Quickstart's desktop OAuth flow -->
         <dependency>
             <groupId>com.google.auth</groupId>
             <artifactId>google-auth-library-oauth2-http</artifactId>

@@ -1,4 +1,4 @@
-package gradesync.models;
+package gradesync.models; // <--- CORRECTED PACKAGE NAME
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -17,17 +17,17 @@ public class Post {
     private String comment; // For future use, will be empty for now
 
     // Constructor now takes the raw API DateTime and Date objects
-    public Post(String id, String title, DateTime creationTimeApi, com.google.api.services.classroom.model.Date dueDateApi) {
+    public Post(String id, String title, String timeString, com.google.api.services.classroom.model.Date dueDateApi) {
         this.id = id;
         this.title = title;
         this.comment = ""; // Initialize comment as empty
 
         // --- Handle creation time from API's DateTime object by parsing its string representation ---
-        if (creationTimeApi != null) {
+        if (timeString != null) {
             try {
                 // Get the string representation of the DateTime object (e.g., "2023-10-27T10:00:00.000Z")
-                String timeString = creationTimeApi.toString();
-                if (timeString != null && !timeString.isEmpty()) {
+//                String timeString = creationTimeApi.toStringRfc3339(); // Use toStringRfc3339() for ISO 8601 string
+                if (!timeString.isEmpty()) {
                     // Parse the ISO 8601 string to an Instant, then convert to LocalDateTime in system's default time zone
                     this.creationTime = LocalDateTime.ofInstant(Instant.parse(timeString), ZoneId.systemDefault());
                 } else {

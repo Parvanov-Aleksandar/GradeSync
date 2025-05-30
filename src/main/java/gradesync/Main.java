@@ -1,4 +1,4 @@
-package gradesync;
+package gradesync; // <--- CORRECTED PACKAGE NAME
 
 import gradesync.models.Subject;
 import gradesync.models.Post;
@@ -14,8 +14,6 @@ import com.google.api.services.classroom.model.StudentSubmission;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
 
 public class Main {
     public static void main(String[] args) {
@@ -23,16 +21,13 @@ public class Main {
         System.out.println("----------------------------------------------------------");
 
         try {
-            // Build a new authorized Classroom API client service.
             Classroom service = AuthManager.getClassroomService();
 
-            // List to store our custom Subject objects
             List<Subject> subjects = new ArrayList<>();
 
-            // 1. Fetch Courses (Subjects)
             System.out.println("\n--- Fetching Courses (Subjects) ---");
             ListCoursesResponse coursesResponse = service.courses().list()
-                .setStudentId("me") // List courses the authenticated user is a student of
+                .setStudentId("me")
                 .setPageSize(10)
                 .execute();
             List<Course> apiCourses = coursesResponse.getCourses();
@@ -48,13 +43,12 @@ public class Main {
                 }
             }
 
-            // 2. For each Subject, fetch its CourseWork (Posts/Assignments)
             System.out.println("\n--- Fetching Coursework (Posts) for each Subject ---");
             for (Subject subject : subjects) {
                 System.out.println("\n  Processing Subject: " + subject.getName());
                 try {
                     ListCourseWorkResponse courseWorkResponse = service.courses().courseWork().list(subject.getId())
-                        .setPageSize(20) // Fetch up to 20 coursework items per course
+                        .setPageSize(20)
                         .execute();
                     List<CourseWork> apiCourseWorks = courseWorkResponse.getCourseWork();
 
@@ -62,31 +56,29 @@ public class Main {
                         System.out.println("    No coursework found for this subject.");
                     } else {
                         for (CourseWork apiCourseWork : apiCourseWorks) {
-                            // Filter for relevant coursework types (e.g., ASSIGNMENT, QUIZ_ASSIGNMENT)
-                            // "SHORT_ANSWER_QUESTION", "MULTIPLE_CHOICE_QUESTION" typically don't have grades directly
                             if (apiCourseWork.getWorkType() != null &&
                                 (apiCourseWork.getWorkType().equals("ASSIGNMENT") ||
                                  apiCourseWork.getWorkType().equals("QUIZ_ASSIGNMENT"))) {
 
+                                // Pass the raw API DateTime and Date objects directly to the Post constructor
                                 Post post = new Post(apiCourseWork.getId(), apiCourseWork.getTitle(),
-                                // Use creation time if due date isn't available
-                                apiCourseWork.getCreationTime() != null ? apiCourseWork.getCreationTime().getMillis() : null);
+                                                     apiCourseWork.getCreationTime(), // This is a DateTime object
+                                                     apiCourseWork.getDueDate());    // This is a Date object from Classroom API
+
                                 subject.addPost(post);
                                 System.out.printf("    Found Coursework: ID=%s, Title='%s', MaxPoints=%s\n",
                                                   post.getId(), post.getTitle(), apiCourseWork.getMaxPoints());
 
-                                // 3. For each CourseWork, fetch Student Submissions (Grades)
                                 try {
                                     ListStudentSubmissionsResponse submissionsResponse =
                                         service.courses().courseWork().studentSubmissions().list(
                                             subject.getId(), post.getId()
-                                        ).setUserId("me") // Get submissions for the authenticated user only
+                                        ).setUserId("me")
                                          .execute();
                                     List<StudentSubmission> apiSubmissions = submissionsResponse.getStudentSubmissions();
 
                                     if (apiSubmissions != null && !apiSubmissions.isEmpty()) {
-                                        // A student should typically have only one submission per coursework
-                                        StudentSubmission mySubmission = apiSubmissions.get(0); // Take the first one
+                                        StudentSubmission mySubmission = apiSubmissions.get(0);
 
                                         if (mySubmission.getAssignedGrade() != null) {
                                             post.setStudentMark(mySubmission.getAssignedGrade().doubleValue());
@@ -120,7 +112,6 @@ public class Main {
                     System.out.println(post);
                 }
             }
-
 
         } catch (IOException e) {
             System.err.println("An error occurred during API interaction: " + e.getMessage());

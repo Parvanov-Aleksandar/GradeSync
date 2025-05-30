@@ -1,1 +1,4 @@
+gradesync\models\Subject.class
 gradesync\AuthManager.class
+gradesync\models\Post.class
+gradesync\Main.class

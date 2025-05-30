@@ -1,4 +1,4 @@
-package gradesync.models;
+package gradesync.models; // <--- CORRECTED PACKAGE NAME
 
 import java.util.ArrayList;
 import java.util.List;
