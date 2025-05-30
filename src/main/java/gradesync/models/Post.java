@@ -26,7 +26,6 @@ public class Post {
         if (timeString != null) {
             try {
                 // Get the string representation of the DateTime object (e.g., "2023-10-27T10:00:00.000Z")
-//                String timeString = creationTimeApi.toStringRfc3339(); // Use toStringRfc3339() for ISO 8601 string
                 if (!timeString.isEmpty()) {
                     // Parse the ISO 8601 string to an Instant, then convert to LocalDateTime in system's default time zone
                     this.creationTime = LocalDateTime.ofInstant(Instant.parse(timeString), ZoneId.systemDefault());
