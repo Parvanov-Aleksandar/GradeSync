@@ -14,13 +14,15 @@ public class Post {
     private LocalDateTime creationTime; // Time when the coursework was created
     private LocalDate dueDate;          // Due date of the coursework
     private Double studentMark;
+    private Double maximumMark; // New field for maximum possible mark
     private String comment; // For future use, will be empty for now
 
     // Constructor now takes the raw API DateTime and Date objects
-    public Post(String id, String title, String timeString, com.google.api.services.classroom.model.Date dueDateApi) {
+    public Post(String id, String title, String timeString, com.google.api.services.classroom.model.Date dueDateApi, Double maximumMark) {
         this.id = id;
         this.title = title;
         this.comment = ""; // Initialize comment as empty
+        this.maximumMark = maximumMark;
 
         // --- Handle creation time from API's DateTime object by parsing its string representation ---
         if (timeString != null) {
@@ -57,8 +59,11 @@ public class Post {
     public String getTitle() { return title; }
     public LocalDateTime getCreationTime() { return creationTime; }
     public LocalDate getDueDate() { return dueDate; }
+    public void setDueDate(LocalDate dueDate) { this.dueDate = dueDate; }
     public Double getStudentMark() { return studentMark; }
     public void setStudentMark(Double studentMark) { this.studentMark = studentMark; }
+    public Double getMaximumMark() { return maximumMark; }
+    public void setMaximumMark(Double maximumMark) { this.maximumMark = maximumMark; }
     public String getComment() { return comment; }
     public void setComment(String comment) { this.comment = comment; }
 
@@ -70,6 +75,7 @@ public class Post {
                ", created=" + (creationTime != null ? creationTime.toLocalDate() : "N/A") +
                ", dueDate=" + (dueDate != null ? dueDate : "N/A") +
                ", studentMark=" + (studentMark != null ? studentMark : "N/A") +
+               ", maximumMark=" + (maximumMark != null ? maximumMark : "N/A") +
                '}';
     }
 }
