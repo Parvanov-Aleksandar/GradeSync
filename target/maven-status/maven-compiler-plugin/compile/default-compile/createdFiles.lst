@@ -1,5 +1,8 @@
+gradesync\GradeSyncGUI.class
 gradesync\models\Subject.class
 gradesync\AuthManager.class
 gradesync\Database.class
+gradesync\GradeSyncGUI$2.class
 gradesync\models\Post.class
+gradesync\GradeSyncGUI$1.class
 gradesync\Main.class

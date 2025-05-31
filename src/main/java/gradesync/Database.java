@@ -54,23 +54,27 @@ public class Database {
         try (Connection conn = connect(); Statement stmt = conn.createStatement()) {
             String createSubjectsTable = "CREATE TABLE IF NOT EXISTS subjects (" +
                                          "id TEXT PRIMARY KEY," +
-                                         "name TEXT NOT NULL" +
+                                         "name TEXT NOT NULL," +
+                                         "grade_boundaries TEXT" + // New column for grade boundaries
                                          ");";
             stmt.execute(createSubjectsTable);
 
             String createPostsTable = "CREATE TABLE IF NOT EXISTS posts (" +
                                       "id TEXT PRIMARY KEY," +
-                                      "subject_id TEXT NOT NULL," +
+                                      "subject_id TEXT," + // Changed to TEXT
                                       "title TEXT NOT NULL," +
                                       "creation_time TEXT," +
                                       "due_date TEXT," +
                                       "student_mark REAL," +
-                                      "maximum_mark REAL," + // New column for maximum mark
+                                      "maximum_mark REAL," +
+                                      "percentage_mark REAL," + // New column for percentage mark
+                                      "grade INTEGER," +       // New column for grade
                                       "comment TEXT," +
+                                      "description TEXT," +    // New column for post description
                                       "FOREIGN KEY (subject_id) REFERENCES subjects(id)" +
                                       ");";
-            stmt.execute(createPostsTable);
-            System.out.println("Tables created successfully.");
+           stmt.execute(createPostsTable);
+           System.out.println("Tables created successfully.");
         }
     }
 
@@ -87,8 +91,8 @@ public class Database {
                 conn = connect();
                 conn.setAutoCommit(false); // Start transaction
 
-                String insertSubjectSQL = "INSERT INTO subjects(id, name) VALUES(?, ?)";
-                String insertPostSQL = "INSERT INTO posts(id, subject_id, title, creation_time, due_date, student_mark, maximum_mark, comment) VALUES(?, ?, ?, ?, ?, ?, ?, ?)";
+                String insertSubjectSQL = "INSERT INTO subjects(id, name, grade_boundaries) VALUES(?, ?, ?)";
+                String insertPostSQL = "INSERT INTO posts(id, subject_id, title, creation_time, due_date, student_mark, maximum_mark, percentage_mark, grade, comment, description) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 for (Course course : courses) {
                     System.out.println("Processing course: " + course.getName() + " (ID: " + course.getId() + ")");
@@ -96,6 +100,9 @@ public class Database {
                     try (PreparedStatement pstmt = conn.prepareStatement(insertSubjectSQL)) {
                         pstmt.setString(1, course.getId());
                         pstmt.setString(2, course.getName());
+                        // Default grade boundaries
+                        String defaultGradeBoundaries = "{\"7\": 85, \"6\": 70, \"5\": 60, \"4\": 40, \"3\": 25, \"2\": 0, \"1\": 0, \"0\": 0}";
+                        pstmt.setString(3, defaultGradeBoundaries);
                         int rowsAffected = pstmt.executeUpdate();
                         if (rowsAffected > 0) {
                             System.out.println("Successfully inserted subject: " + course.getName());
@@ -121,6 +128,7 @@ public class Database {
                             Double studentMark = null;
                             Double maximumMark = null; // Initialize maximumMark
                             String comment = "";
+                            String description = ""; // Initialize description
 
                             // Attempt to get student submission and grade
                             try {
@@ -148,24 +156,46 @@ public class Database {
                                 System.out.println("    No maximum mark found for this coursework.");
                             }
 
+                            // Create a temporary Post object to calculate percentage and grade
+                            // We need the subject's grade boundaries for this.
+                            // This is a simplified approach; in a real app, you'd fetch the subject first.
+                            // For now, we'll use the default boundaries for calculation if subject not found.
+                            String subjectGradeBoundaries = getSubjectGradeBoundaries(course.getId());
+                            
+                            // Retrieve description from coursework if available
+                            if (work.getDescription() != null) {
+                                description = work.getDescription();
+                                System.out.println("    Description found: " + description);
+                            } else {
+                                System.out.println("    No description found for this coursework.");
+                            }
+
+                            Post tempPost = new Post(work.getId(), work.getTitle(),
+                                                     work.getCreationTime() != null ? work.getCreationTime().substring(0, 10) : null,
+                                                     work.getDueDate(), studentMark, maximumMark, 0.0, 0, comment, description, course.getId());
+                            tempPost.calculatePercentageMark();
+                            tempPost.calculateGrade(subjectGradeBoundaries);
+
                             try (PreparedStatement pstmt = conn.prepareStatement(insertPostSQL)) {
-                                pstmt.setString(1, work.getId());
+                                pstmt.setString(1, tempPost.getId());
                                 pstmt.setString(2, course.getId());
-                                pstmt.setString(3, work.getTitle());
-                                pstmt.setString(4, work.getCreationTime() != null ? work.getCreationTime().toString() : null);
-                                pstmt.setString(5, work.getDueDate() != null ?
-                                        LocalDate.of(work.getDueDate().getYear(), work.getDueDate().getMonth(), work.getDueDate().getDay()).toString() : null);
-                                if (studentMark != null) {
-                                    pstmt.setDouble(6, studentMark);
+                                pstmt.setString(3, tempPost.getTitle());
+                                pstmt.setString(4, tempPost.getCreationDate() != null ? tempPost.getCreationDate().toString() : null); // This is already a string from the Post object
+                                pstmt.setString(5, tempPost.getDueDate() != null ? tempPost.getDueDate().toString() : null);
+                                if (tempPost.getStudentMark() != null) {
+                                    pstmt.setDouble(6, tempPost.getStudentMark());
                                 } else {
                                     pstmt.setNull(6, Types.REAL);
                                 }
-                                if (maximumMark != null) {
-                                    pstmt.setDouble(7, maximumMark); // Set maximum_mark
+                                if (tempPost.getMaximumMark() != null) {
+                                    pstmt.setDouble(7, tempPost.getMaximumMark());
                                 } else {
                                     pstmt.setNull(7, Types.REAL);
                                 }
-                                pstmt.setString(8, comment);
+                                pstmt.setDouble(8, tempPost.getPercentageMark());
+                                pstmt.setInt(9, tempPost.getGrade());
+                                pstmt.setString(10, tempPost.getComment());
+                                pstmt.setString(11, tempPost.getDescription()); // Set description
                                 int rowsAffected = pstmt.executeUpdate();
                                 if (rowsAffected > 0) {
                                     System.out.println("    Successfully inserted post: " + work.getTitle());
@@ -219,12 +249,12 @@ public class Database {
     // CRUD operations for Subject
     public List<Subject> getAllSubjects() {
         List<Subject> subjects = new ArrayList<>();
-        String sql = "SELECT id, name FROM subjects";
+        String sql = "SELECT id, name, grade_boundaries FROM subjects";
         try (Connection conn = connect();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
-                subjects.add(new Subject(rs.getString("id"), rs.getString("name")));
+                subjects.add(new Subject(rs.getString("id"), rs.getString("name"), rs.getString("grade_boundaries")));
             }
         } catch (SQLException e) {
             System.err.println("Error fetching subjects: " + e.getMessage());
@@ -244,13 +274,13 @@ public class Database {
     }
 
     public Subject getSubjectById(String id) {
-        String sql = "SELECT id, name FROM subjects WHERE id = ?";
+        String sql = "SELECT id, name, grade_boundaries FROM subjects WHERE id = ?";
         try (Connection conn = connect();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, id);
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
-                return new Subject(rs.getString("id"), rs.getString("name"));
+                return new Subject(rs.getString("id"), rs.getString("name"), rs.getString("grade_boundaries"));
             }
         } catch (SQLException e) {
             System.err.println("Error fetching subject by ID: " + e.getMessage());
@@ -258,10 +288,27 @@ public class Database {
         return null;
     }
 
+    // Helper method to get grade boundaries for a subject
+    private String getSubjectGradeBoundaries(String subjectId) {
+        String sql = "SELECT grade_boundaries FROM subjects WHERE id = ?";
+        try (Connection conn = connect();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, subjectId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getString("grade_boundaries");
+            }
+        } catch (SQLException e) {
+            System.err.println("Error fetching grade boundaries for subject " + subjectId + ": " + e.getMessage());
+        }
+        // Return default if not found or error
+        return "{\"7\": 85, \"6\": 70, \"5\": 60, \"4\": 40, \"3\": 25, \"2\": 0, \"1\": 0, \"0\": 0}";
+    }
+
     // CRUD operations for Post
     public List<Post> getPostsBySubjectId(String subjectId) {
         List<Post> posts = new ArrayList<>();
-        String sql = "SELECT id, title, creation_time, due_date, student_mark, maximum_mark, comment FROM posts WHERE subject_id = ?";
+        String sql = "SELECT id, title, creation_time, due_date, student_mark, maximum_mark, percentage_mark, grade, comment, description, subject_id FROM posts WHERE subject_id = ?";
         try (Connection conn = connect();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, subjectId);
@@ -272,16 +319,17 @@ public class Database {
                 String creationTimeString = rs.getString("creation_time");
                 String dueDateString = rs.getString("due_date");
                 Double studentMark = rs.getObject("student_mark", Double.class);
-                Double maximumMark = rs.getObject("maximum_mark", Double.class); // Retrieve maximum_mark
+                Double maximumMark = rs.getObject("maximum_mark", Double.class);
+                double percentageMark = rs.getDouble("percentage_mark");
+                int grade = rs.getInt("grade");
                 String comment = rs.getString("comment");
+                String description = rs.getString("description"); // Retrieve description
+                String retrievedSubjectId = rs.getString("subject_id");
 
-                // Reconstruct Post object, passing maximumMark to the constructor
-                Post post = new Post(postId, title, creationTimeString, null, maximumMark); // dueDateApi is null, will be parsed from string
+                Post post = new Post(postId, title, creationTimeString, null, studentMark, maximumMark, percentageMark, grade, comment, description, retrievedSubjectId);
                 if (dueDateString != null) {
                     post.setDueDate(LocalDate.parse(dueDateString));
                 }
-                post.setStudentMark(studentMark);
-                post.setComment(comment);
                 posts.add(post);
             }
         } catch (SQLException e) {

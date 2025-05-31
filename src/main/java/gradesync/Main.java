@@ -1,4 +1,4 @@
-package gradesync; // <--- CORRECTED PACKAGE NAME
+package gradesync;
 
 import gradesync.models.Subject;
 import gradesync.models.Post;
@@ -11,28 +11,26 @@ import com.google.api.services.classroom.model.ListCourseWorkResponse;
 import com.google.api.services.classroom.model.ListStudentSubmissionsResponse;
 import com.google.api.services.classroom.model.StudentSubmission;
 
+import javax.swing.SwingUtilities;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        System.out.println("Welcome to the Google Classroom Grade Tracker (API Version)");
-        System.out.println("----------------------------------------------------------");
+        System.out.println("Welcome to the Google Classroom Grade Tracker");
+        System.out.println("---------------------------------------------");
 
         try {
             // Instantiate Database and initialize it
             Database database = new Database();
-            List<Subject> subjects = database.initializeDatabase(); // This handles loading/fetching/persisting data
+            database.initializeDatabase(); // This handles loading/fetching/persisting data
 
-            System.out.println("\n--- All Data Loaded/Fetched ---");
-            System.out.println("Summary of Subjects and Posts:");
-            for (Subject subject : subjects) {
-                System.out.println(subject);
-                for (Post post : subject.getPosts()) {
-                    System.out.println(post);
-                }
-            }
+            // Launch the GradeSync GUI
+            SwingUtilities.invokeLater(() -> {
+                new GradeSyncGUI().setVisible(true);
+            });
 
         } catch (IOException e) {
             System.err.println("An error occurred during API interaction: " + e.getMessage());

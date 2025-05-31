@@ -1,4 +1,4 @@
-package gradesync; // <--- CORRECTED PACKAGE NAME
+package gradesync;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
@@ -8,10 +8,11 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.gson.GsonFactory; // Using GsonFactory as per your pom.xml
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.classroom.Classroom;
 import com.google.api.services.classroom.ClassroomScopes;
+import com.google.api.services.classroom.model.UserProfile;
 
 import java.io.File;
 import java.io.IOException;
@@ -98,5 +99,8 @@ public class AuthManager {
             HTTP_TRANSPORT, JSON_FACTORY, credential)
             .setApplicationName(APPLICATION_NAME)
             .build();
+    }
+    public String getCurrentUserName() {
+        return "user 1";
     }
 }
