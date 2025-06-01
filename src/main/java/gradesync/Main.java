@@ -4,7 +4,7 @@ import javax.swing.SwingUtilities;
 import java.io.IOException;
 import java.sql.SQLException;
 
-public class Main // Encapsulation
+public class Main
 { 
     public static void main(String[] args) // Main method
     { 
