@@ -12,9 +12,7 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.classroom.Classroom;
 import com.google.api.services.classroom.ClassroomScopes;
-import com.google.api.services.classroom.model.UserProfile;
-
-import java.io.File;
+ 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -22,85 +20,71 @@ import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import java.util.List;
 
-public class AuthManager {
+public class AuthManager // Encapsulation
+{ 
 
-    /** Application name. */
     private static final String APPLICATION_NAME = "Google Classroom Grade Tracker IA";
-
-    /** Directory to store user credentials for this application. */
-    private static final java.io.File DATA_STORE_DIR = new java.io.File(
-        System.getProperty("user.home"), ".credentials/classroom-java-quickstart");
-
-    /** Global instance of the {@link FileDataStoreFactory}. */
+    private static final java.io.File DATA_STORE_DIR = new java.io.File(System.getProperty("user.home"), ".credentials/gradesync");
     private static FileDataStoreFactory DATA_STORE_FACTORY;
-
-    /** Global instance of the HTTP transport. */
     private static HttpTransport HTTP_TRANSPORT;
-
-    /** Global instance of the JSON factory. */
-    private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance(); // <--- INSTANTIATED GSON FACTORY
-
-    // Define the scopes your application needs.
+    private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     private static final List<String> SCOPES =
         Arrays.asList(ClassroomScopes.CLASSROOM_COURSES_READONLY,
                       ClassroomScopes.CLASSROOM_COURSEWORK_ME_READONLY);
 
-    static {
-        try {
+    static
+    { // Initializes Google API client components. Use of external libraries
+      // Ensures that the necessary components for Google API interaction are set up once when the class is loaded
+        try
+        { // Attempts to initialize HTTP transport and data store factory
             HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
             DATA_STORE_FACTORY = new FileDataStoreFactory(DATA_STORE_DIR);
-        } catch (GeneralSecurityException | IOException e) {
+        }
+        catch (GeneralSecurityException | IOException e)
+        { // Catches security or IO exceptions during initialization. Error handling
             System.err.println("Error initializing Google API client components: " + e.getMessage());
             e.printStackTrace();
             System.exit(1);
         }
     }
 
-    /**
-     * Creates an authorized Credential object.
-     * On the first run, this will open a browser window for user authentication.
-     * Subsequent runs will use cached credentials.
-     * @return An authorized Credential object.
-     * @throws IOException
-     */
-    public static Credential authorize() throws IOException {
+    public static Credential authorize() throws IOException
+    { // Creates an authorized Credential object, opening a browser for user authentication if needed. Use of external libraries
+      // This method abstracts the complex OAuth2 authorization flow into a simple call
+
         InputStream in = AuthManager.class.getResourceAsStream("/credentials.json");
-        if (in == null) {
+
+        if (in == null)
+        { // Checks if credentials.json is missing
             System.err.println("ERROR: credentials.json not found in resources folder.");
             System.err.println("Please place credentials.json in src/main/resources folder.");
             throw new IOException("credentials.json not found.");
         }
         GoogleClientSecrets clientSecrets =
-            GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
+            GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in)); // Parses the client secrets JSON file
 
-        GoogleAuthorizationCodeFlow flow =
+        GoogleAuthorizationCodeFlow flow = 
             new GoogleAuthorizationCodeFlow.Builder(
                 HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
                 .setDataStoreFactory(DATA_STORE_FACTORY)
                 .setAccessType("offline")
                 .build();
+        //handles OAuth 2.0 authorisation, opens google login, retrieves access token
 
-        Credential credential = new AuthorizationCodeInstalledApp(
-            flow, new LocalServerReceiver()).authorize("user");
+        Credential credential = new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
+        // Represents the user's authorization credentials
 
-        System.out.println(
-            "Credentials saved to " + DATA_STORE_DIR.getAbsolutePath());
-        return credential;
+        return credential; // Method returns the credential
     }
 
-    /**
-     * Build and return an authorized Classroom client service.
-     * @return An authorized Classroom client service
-     * @throws IOException
-     */
-    public static Classroom getClassroomService() throws IOException {
-        Credential credential = authorize();
+    public static Classroom getClassroomService() throws IOException
+    { // Builds and returns an authorized Google Classroom client service
+      // Abstraction of Google Classroom API
+        Credential credential = authorize(); // Obtains the authorized credential
+
         return new Classroom.Builder(
             HTTP_TRANSPORT, JSON_FACTORY, credential)
             .setApplicationName(APPLICATION_NAME)
             .build();
-    }
-    public String getCurrentUserName() {
-        return "user 1";
     }
 }

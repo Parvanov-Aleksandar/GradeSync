@@ -1,43 +1,22 @@
 package gradesync;
 
-import gradesync.models.Subject;
-import gradesync.models.Post;
-
-import com.google.api.services.classroom.Classroom;
-import com.google.api.services.classroom.model.Course;
-import com.google.api.services.classroom.model.CourseWork;
-import com.google.api.services.classroom.model.ListCoursesResponse;
-import com.google.api.services.classroom.model.ListCourseWorkResponse;
-import com.google.api.services.classroom.model.ListStudentSubmissionsResponse;
-import com.google.api.services.classroom.model.StudentSubmission;
-
 import javax.swing.SwingUtilities;
-
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.sql.SQLException;
 
-public class Main {
-    public static void main(String[] args) {
-        System.out.println("Welcome to the Google Classroom Grade Tracker");
-        System.out.println("---------------------------------------------");
-
+public class Main // Encapsulation
+{ 
+    public static void main(String[] args) // Main method
+    { 
+        Database database = new Database(); // Instantiates the database
         try {
-            // Instantiate Database and initialize it
-            Database database = new Database();
-            database.initializeDatabase(); // This handles loading/fetching/persisting data
-
-            // Launch the GradeSync GUI
-            SwingUtilities.invokeLater(() -> {
-                new GradeSyncGUI().setVisible(true);
-            });
-
-        } catch (IOException e) {
-            System.err.println("An error occurred during API interaction: " + e.getMessage());
-            e.printStackTrace();
-        } catch (Exception e) {
-            System.err.println("An unexpected error occurred: " + e.getMessage());
+            database.initializeDatabase(); // Initializes the database
+        } catch (SQLException | IOException e) {
             e.printStackTrace();
         }
+        SwingUtilities.invokeLater(() ->
+            {
+                new GUI().setVisible(true); // Makes the GUI visible.
+            });
     }
 }
