@@ -16,7 +16,7 @@ public class Main
         }
         SwingUtilities.invokeLater(() ->
             {
-                new GUI().setVisible(true); // Makes the GUI visible.
+                new GUI().setVisible(true); // Makes the GUI visible
             });
     }
 }
