@@ -4,11 +4,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Subject
-{ // Encapsulation
+{
     private String id;
     private String name;
     private String gradeBoundaries;
-
     private int targetMark;
     private double averageMark;
     private boolean targetMarkAchieved;
@@ -46,46 +45,46 @@ public class Subject
     }
 
     public String getId()
-    { // Returns the ID of the subject.
+    { // Returns the ID of the subject
         return id;
     }
 
     public String getName()
-    { // Returns the name of the subject.
+    { // Returns the name of the subject
         return name;
     }
 
     public List<Post> getPosts()
-    { // Returns the list of posts associated with the subject.
+    { // Returns the list of posts associated with the subject
         return posts;
     }
 
     public String getGradeBoundaries()
-    { // Returns the grade boundaries as a JSON string.
+    { // Returns the grade boundaries as a JSON string
         return gradeBoundaries;
     }
 
     public int getTargetMark()
-    { // Returns the target mark for the subject.
+    { // Returns the target mark for the subject
         return targetMark;
     }
 
     public void setTargetMark(int targetMark)
-    { // Sets the target mark for the subject.
+    { // Sets the target mark for the subject
         this.targetMark = targetMark;
     }
 
     public double getAverageMark()
-    { // Calculates and returns the average mark for the subject based on its posts. Complexity: Loop.
-        if (posts.isEmpty()){ // Checks if there are no posts.
+    { // Calculates and returns the average mark for the subject based on its posts
+        if (posts.isEmpty()){ // Checks if there are no posts
             return 0.0;
         }
         double totalPercentage = 0;
         for (Post post : posts)
-        { // Iterates through each post to sum up percentage marks. Complexity: Loop.
+        { // Iterates through each post to sum up percentage marks
             totalPercentage += post.getPercentageMark();
         }
-        return totalPercentage / posts.size(); // Returns the average percentage.
+        return totalPercentage / posts.size(); // Returns the average percentage
     }
 
     public void setAverageMark(double averageMark)
@@ -104,25 +103,15 @@ public class Subject
     }
 
     public void addPost(Post post)
-    { // Adds a post to the subject and recalculates average and target mark achievement.
-        this.posts.add(post); // Adds the post to the list.
-        this.averageMark = getAverageMark(); // Recalculates average mark.
-        this.targetMarkAchieved = isTargetMarkAchieved(); // Recalculates target mark achieved status.
-    }
-
-    public void checkTargetMarkAchieved()
-    { // Checks and updates the target mark achievement status.
-        if (isTargetMarkAchieved())
-        { // Checks if the target mark is achieved.
-        }
-        else
-        { // If target mark is not achieved.
-        }
+    { // Adds a post to the subject and recalculates average and target mark achievement
+        this.posts.add(post); // Adds the post to the list
+        this.averageMark = getAverageMark(); // Recalculates average mark
+        this.targetMarkAchieved = isTargetMarkAchieved(); // Recalculates target mark achieved status
     }
 
     @Override
-    public String toString()
-    { // Returns a string representation of the Subject object.
+    public String toString() // Returns a string description of the Subject object
+    {
         return "Subject{" +
                "id='" + id + '\'' +
                ", name='" + name + '\'' +

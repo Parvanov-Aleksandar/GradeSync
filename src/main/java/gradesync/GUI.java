@@ -9,7 +9,7 @@ import java.awt.event.ActionListener;
 import java.util.List;
 
 public class GUI extends JFrame
-{ // Encapsulation
+{
     private JPanel mainPanel;
     private JPanel subjectListPanel;
     private JPanel postListPanel;
@@ -17,22 +17,22 @@ public class GUI extends JFrame
     private Subject currentSubject;
 
     public GUI()
-    { // Initializes the GUI frame and components. Complexity: Use of additional libraries.
+    { // Initializes the GUI frame and components
         setTitle("GradeSync");
         setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        database = new Database(); // Initializes the database instance.
+        database = new Database(); // Initializes the database instance
  
-        mainPanel = new JPanel(new CardLayout()); // Sets up the main panel with CardLayout.
+        mainPanel = new JPanel(new CardLayout()); // Sets up the main panel
         add(mainPanel);
  
-        createSubjectListView(); // Creates the subject list view.
-        mainPanel.add(subjectListPanel, "SubjectListView"); // Adds the subject list view to the main panel.
+        createSubjectListView(); // Creates the subject list view
+        mainPanel.add(subjectListPanel, "SubjectListView"); // Adds the subject list view to the main panel
  
-        postListPanel = new JPanel(new BorderLayout()); // Initializes the post list panel.
-        mainPanel.add(postListPanel, "PostListView"); // Adds the post list view to the main panel.
+        postListPanel = new JPanel(new BorderLayout()); // Initializes the post list panel
+        mainPanel.add(postListPanel, "PostListView"); // Adds the post list view to the main panel
  
         showSubjectListView(); // Displays the subject list view.
     }
@@ -49,29 +49,29 @@ public class GUI extends JFrame
         JScrollPane scrollPane = new JScrollPane(subjectsPanel); // Adds scrollability to the subjects panel.
         subjectListPanel.add(scrollPane, BorderLayout.CENTER); // Adds scroll pane to subject list panel.
  
-        List<Subject> subjects = database.getAllSubjects(); // Retrieves all subjects from the database.
-        if (subjects != null && !subjects.isEmpty())
-        { // Checks if subjects exist.
-            for (Subject subject : subjects)
-            { // Iterates through each subject to create a button. Complexity: Loop.
-                JButton subjectButton = new JButton(subject.getName()); // Creates a button for the subject.
-                subjectButton.setAlignmentX(Component.CENTER_ALIGNMENT); // Centers the button horizontally.
-                subjectButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, subjectButton.getMinimumSize().height)); // Makes button fill width.
-                subjectButton.addActionListener(new ActionListener()
-                { // Adds an action listener to the button.
+        List<Subject> subjects = database.getAllSubjects(); // Retrieves all subjects from the database
+        if (subjects != null && !subjects.isEmpty()) // Checks if subjects exist
+        {
+            for (Subject subject : subjects) // Iterates through each subject to create a button
+            {
+                JButton subjectButton = new JButton(subject.getName()); // Creates a button for the subject
+                subjectButton.setAlignmentX(Component.CENTER_ALIGNMENT); // Centers the button horizontally
+                subjectButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, subjectButton.getMinimumSize().height)); // Makes button fill width
+                subjectButton.addActionListener(new ActionListener() // Adds an action listener to the button
+                {
                     @Override
-                    public void actionPerformed(ActionEvent e){ // Handles button click event.
-                        currentSubject = subject; // Sets the current subject.
-                        showPostListView(subject.getId()); // Displays the post list view for the selected subject.
+                    public void actionPerformed(ActionEvent e){ // Handles button click event
+                        currentSubject = subject; // Sets the current subject
+                        showPostListView(subject.getId()); // Displays the post list view for the selected subject
                     }
                 });
-                subjectsPanel.add(subjectButton); // Adds the button to the subjects panel.
-                subjectsPanel.add(Box.createRigidArea(new Dimension(0, 5))); // Adds spacing between buttons.
+                subjectsPanel.add(subjectButton); // Adds the button to the subjects panel
+                subjectsPanel.add(Box.createRigidArea(new Dimension(0, 5))); // Adds spacing between buttons
             }
         }
-        else
-        { // If no subjects are found.
-            subjectsPanel.add(new JLabel("No subjects found.")); // Displays a message.
+        else // If no subjects are found
+        {
+            subjectsPanel.add(new JLabel("No subjects found."));
         }
     }
 
@@ -80,7 +80,6 @@ public class GUI extends JFrame
         CardLayout cl = (CardLayout) (mainPanel.getLayout()); // Gets the CardLayout from the main panel.
         cl.show(mainPanel, "SubjectListView"); // Shows the "SubjectListView" card.
     }
-
 
     private void showPostListView(String subjectId)
     { // Displays the post list view for a selected subject. Complexity: Use of additional libraries, Loop.
@@ -93,9 +92,9 @@ public class GUI extends JFrame
             showSubjectListView(); // Returns to the subject list view.
             return;
         }
-        List<Post> postsForSubject = database.getPostsBySubjectId(subjectId); // Retrieves posts for the subject.
-        for (Post post : postsForSubject)
-        { // Adds each post to the current subject. Complexity: Loop.
+        List<Post> postsForSubject = database.getPostsBySubjectId(subjectId); // Retrieves posts for the subject
+        for (Post post : postsForSubject) // Adds each post to the current subject
+        {
             currentSubject.addPost(post);
         }
  
@@ -117,39 +116,41 @@ public class GUI extends JFrame
         targetMarkPanel.add(targetMarkLabel); // Adds label to target mark panel.
  
         JTextField targetMarkField = new JTextField(String.valueOf(currentSubject.getTargetMark()), 5); // Text field for target mark.
-        targetMarkField.addActionListener(new ActionListener(){ // Adds action listener for target mark field.
+        targetMarkField.addActionListener(new ActionListener() // Adds action listener for target mark field
+        {
             @Override
-            public void actionPerformed(ActionEvent e){ // Handles action when target mark is entered.
+            public void actionPerformed(ActionEvent e) // Handles action when target mark is entered
+            {
                 try
-                { // Attempts to parse and update target mark.
-                    int newTargetMark = Integer.parseInt(targetMarkField.getText()); // Parses new target mark.
-                    if (newTargetMark >= 0 && newTargetMark <= 100)
-                    { // Validates target mark range.
-                        database.updateSubjectTargetMark(currentSubject.getId(), newTargetMark); // Updates target mark in database.
-                        currentSubject.setTargetMark(newTargetMark); // Updates in-memory subject object.
-                        JOptionPane.showMessageDialog(GUI.this, "Target mark updated successfully!"); // Shows success message.
+                { // Attempts to parse and update target mark
+                    int newTargetMark = Integer.parseInt(targetMarkField.getText()); // Parses new target mark
+                    if (newTargetMark >= 0 && newTargetMark <= 100) // Checks if new target mark is within the acceptable percentage range
+                    {
+                        database.updateSubjectTargetMark(currentSubject.getId(), newTargetMark); // Updates target mark in database
+                        currentSubject.setTargetMark(newTargetMark); // Updates in-memory subject object
+                        JOptionPane.showMessageDialog(GUI.this, "Target mark updated successfully!"); // Shows success message
  
-                        if (currentSubject.getAverageMark() >= currentSubject.getTargetMark())
-                        { // Checks if target mark is achieved.
+                        if (currentSubject.getAverageMark() >= currentSubject.getTargetMark()) // Checks if target mark is achieved
+                        {
                             JOptionPane.showMessageDialog(GUI.this, "Congratulations! You have achieved your target grade for this subject!",
-                                                    "Target Achieved", JOptionPane.INFORMATION_MESSAGE); // Shows congratulatory message.
+                                                    "Target Achieved", JOptionPane.INFORMATION_MESSAGE); // Shows congratulatory message
                         }
                     }
-                    else
-                    { // Handles invalid target mark input.
-                        JOptionPane.showMessageDialog(GUI.this, "Target mark must be between 0 and 100.", "Input Error", JOptionPane.ERROR_MESSAGE); // Shows error message.
-                        targetMarkField.setText(String.valueOf(currentSubject.getTargetMark())); // Reverts to old value.
+                    else // Handles invalid target mark input
+                    {
+                        JOptionPane.showMessageDialog(GUI.this, "Target mark must be between 0 and 100.", "Input Error", JOptionPane.ERROR_MESSAGE); // Shows error message
+                        targetMarkField.setText(String.valueOf(currentSubject.getTargetMark())); // Reverts to old value
                     }
                 }
-                catch (NumberFormatException ex)
-                { // Catches number format exceptions.
-                    JOptionPane.showMessageDialog(GUI.this, "Please enter a valid number for target mark.", "Input Error", JOptionPane.ERROR_MESSAGE); // Shows error message.
+                catch (NumberFormatException ex) // Catches number format exceptions
+                {
+                    JOptionPane.showMessageDialog(GUI.this, "Please enter a valid number for target mark.", "Input Error", JOptionPane.ERROR_MESSAGE); // Shows error message
                     targetMarkField.setText(String.valueOf(currentSubject.getTargetMark())); // Reverts to old value.
                 }
-                catch (java.sql.SQLException ex)
-                { // Catches SQL exceptions.
-                    JOptionPane.showMessageDialog(GUI.this, "Error saving target mark to database: " + ex.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE); // Shows database error.
-                    targetMarkField.setText(String.valueOf(currentSubject.getTargetMark())); // Reverts to old value.
+                catch (java.sql.SQLException ex) // Catches SQL exceptions
+                {
+                    JOptionPane.showMessageDialog(GUI.this, "Error saving target mark to database: " + ex.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE); // Shows database error
+                    targetMarkField.setText(String.valueOf(currentSubject.getTargetMark())); // Reverts to old value
                 }
             }
         });
@@ -213,8 +214,8 @@ public class GUI extends JFrame
         cl.show(mainPanel, "PostListView"); // Shows "PostListView" card.
     }
 
-    private void showPostDetailDialog(Post post) // Displays a dialog with detailed information about a post
-    {
+    private void showPostDetailDialog(Post post)
+    { // Displays a dialog with detailed information about a post
         JDialog postDetailDialog = new JDialog(this, "Post Details", true); // Creates a new dialog (small window)
         postDetailDialog.setSize(400, 300);
         postDetailDialog.setLocationRelativeTo(this);

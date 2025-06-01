@@ -34,10 +34,10 @@ public class Post
         this.subjectId = subjectId;
 
         if (creationTimeString != null && !creationTimeString.isEmpty()) // Checks if creation time string is valid
-       {
-            try // Attempts to parse the creation date string
+        {
+            try
             {
-                this.creationDate = LocalDate.parse(creationTimeString.substring(0, 10));
+                this.creationDate = LocalDate.parse(creationTimeString.substring(0, 10)); // Parses the creation date string
             }
             catch (DateTimeParseException e) // Catches parsing errors
             {
@@ -68,7 +68,7 @@ public class Post
         }
     }
 
-    // Getters & Setters
+    // Accessors and Mutators
     public String getId()
     {
         return id;
@@ -190,7 +190,7 @@ public class Post
         String defaultBoundaries = "{\"7\": 85, \"6\": 70, \"5\": 60, \"4\": 40, \"3\": 25, \"2\": 0, \"1\": 0, \"0\": 0}"; // Default grade boundaries
         String jsonToParse = (gradeBoundariesJson != null && !gradeBoundariesJson.isEmpty()) ? gradeBoundariesJson : defaultBoundaries; // Uses provided or default boundaries
 
-        try // Attempts to parse grade boundaries and calculate grade
+        try
         {
             jsonToParse = jsonToParse.substring(1, jsonToParse.length() - 1); // Removes curly brackets from JSON string
             String[] pairs = jsonToParse.split(", "); // Splits JSON into key-value pairs
@@ -236,7 +236,7 @@ public class Post
     }
 
     @Override
-    public String toString() // Returns a string representation of the Post object
+    public String toString() // Returns a string description of the Post object
     {
         return "  Post{" +
                "id='" + id + '\'' +
@@ -249,5 +249,5 @@ public class Post
                ", grade=" + grade +
                ", description='" + description + '\'' +
                '}';
-   }
+    }
 }
