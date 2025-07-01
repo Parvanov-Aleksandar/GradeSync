@@ -44,6 +44,29 @@ public class GUI extends JFrame
         JPanel headerPanel = new JPanel(new BorderLayout()); // Creates a header panel.
         subjectListPanel.add(headerPanel, BorderLayout.NORTH); // Adds header to subject list panel.
  
+        JButton updateButton = new JButton("Update from Google Classroom");
+        updateButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    database.updateDatabaseFromAPI();
+                    JOptionPane.showMessageDialog(GUI.this, "Data updated successfully from Google Classroom!");
+                    
+                    // Refresh the view by recreating it
+                    mainPanel.remove(subjectListPanel);
+                    createSubjectListView();
+                    mainPanel.add(subjectListPanel, "SubjectListView");
+                    showSubjectListView();
+                    revalidate();
+                    repaint();
+
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(GUI.this, "Error updating data: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+        headerPanel.add(updateButton, BorderLayout.EAST);
+
         JPanel subjectsPanel = new JPanel(); // Creates a panel for subject buttons.
         subjectsPanel.setLayout(new BoxLayout(subjectsPanel, BoxLayout.Y_AXIS)); // Sets layout for vertical arrangement.
         JScrollPane scrollPane = new JScrollPane(subjectsPanel); // Adds scrollability to the subjects panel.
@@ -130,10 +153,17 @@ public class GUI extends JFrame
                         currentSubject.setTargetMark(newTargetMark); // Updates in-memory subject object
                         JOptionPane.showMessageDialog(GUI.this, "Target mark updated successfully!"); // Shows success message
  
-                        if (currentSubject.getAverageMark() >= currentSubject.getTargetMark()) // Checks if target mark is achieved
+                        // Check if target mark is currently achieved and if it hasn't been achieved before
+                        if (currentSubject.isTargetMarkCurrentlyAchieved() && !currentSubject.isAlreadyAchieved())
                         {
                             JOptionPane.showMessageDialog(GUI.this, "Congratulations! You have achieved your target grade for this subject!",
                                                     "Target Achieved", JOptionPane.INFORMATION_MESSAGE); // Shows congratulatory message
+                            try {
+                                database.updateSubjectTargetMarkAchievedStatus(currentSubject.getId(), true, true);
+                                currentSubject.setAlreadyAchieved(true); // Update in-memory object as well
+                            } catch (java.sql.SQLException ex) {
+                                System.err.println("Error updating already_achieved status: " + ex.getMessage());
+                            }
                         }
                     }
                     else // Handles invalid target mark input
@@ -166,10 +196,17 @@ public class GUI extends JFrame
         averageMarkPanel.add(averageMarkField); // Adds average mark field to its panel.
         infoPanel.add(averageMarkPanel); // Adds average mark panel to info panel.
  
-        if (currentSubject.getAverageMark() >= currentSubject.getTargetMark())
+        // Check if target mark is currently achieved and if it hasn't been achieved before
+        if (currentSubject.isTargetMarkCurrentlyAchieved() && !currentSubject.isAlreadyAchieved())
         { // Checks if target mark is achieved.
             JOptionPane.showMessageDialog(this, "Congratulations! You have achieved your target grade for this subject!",
                                     "Target Achieved", JOptionPane.INFORMATION_MESSAGE); // Shows congratulatory message.
+            try {
+                database.updateSubjectTargetMarkAchievedStatus(currentSubject.getId(), true, true);
+                currentSubject.setAlreadyAchieved(true); // Update in-memory object as well
+            } catch (java.sql.SQLException ex) {
+                System.err.println("Error updating already_achieved status: " + ex.getMessage());
+            }
         }
  
         JPanel headerContainerPanel = new JPanel(); // Container for header and info panels.

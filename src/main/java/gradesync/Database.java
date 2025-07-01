@@ -62,7 +62,8 @@ public class Database
                                          "grade_boundaries TEXT," +
                                          "target_mark INTEGER DEFAULT 0," +
                                          "average_mark REAL DEFAULT 0.0," +
-                                         "target_mark_achieved BOOLEAN DEFAULT FALSE" +
+                                         "is_target_mark_currently_achieved BOOLEAN DEFAULT FALSE," +
+                                         "already_achieved BOOLEAN DEFAULT FALSE" +
                                          ");";
             stmt.execute(createSubjectsTable); // Executes SQL to create subjects table
 
@@ -100,21 +101,27 @@ public class Database
                 conn = connect(); // Establishes a database connection
                 conn.setAutoCommit(false); // Starts a database transaction. This ensures data persistence
  
-                String insertSubjectSQL = "INSERT INTO subjects(id, name, grade_boundaries, target_mark, average_mark, target_mark_achieved) VALUES(?, ?, ?, ?, ?, ?)";
-                String insertPostSQL = "INSERT INTO posts(id, subject_id, title, creation_time, due_date, student_mark, maximum_mark, percentage_mark," +
+                String insertSubjectSQL = "INSERT OR REPLACE INTO subjects(id, name, grade_boundaries, target_mark, average_mark, is_target_mark_currently_achieved, already_achieved) VALUES(?, ?, ?, ?, ?, ?, ?)";
+                String insertPostSQL = "INSERT OR REPLACE INTO posts(id, subject_id, title, creation_time, due_date, student_mark, maximum_mark, percentage_mark," +
                                         "grade, comment, description) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
- 
+
                 for (Course course : courses)
                 { // Loops through each course retrieved from the API. Complexity: Loop. This loop processes each course individually
+                   Subject existingSubject = getSubjectById(course.getId());
+                   int targetMark = (existingSubject != null) ? existingSubject.getTargetMark() : 85;
+                   String gradeBoundaries = (existingSubject != null) ? existingSubject.getGradeBoundaries() : "{\"7\": 85, \"6\": 70, \"5\": 60, \"4\": 40, \"3\": 25, \"2\": 0, \"1\": 0, \"0\": 0}";
+                   boolean isTargetMarkCurrentlyAchieved = (existingSubject != null) ? existingSubject.isTargetMarkCurrentlyAchieved() : false;
+                   boolean alreadyAchieved = (existingSubject != null) ? existingSubject.isAlreadyAchieved() : false;
+
                     try (PreparedStatement pstmt = conn.prepareStatement(insertSubjectSQL))
                     { // Prepares and executes statement to insert subject. This uses a try-with-resources for automatic statement closing
                         pstmt.setString(1, course.getId());
                         pstmt.setString(2, course.getName());
-                        String defaultGradeBoundaries = "{\"7\": 85, \"6\": 70, \"5\": 60, \"4\": 40, \"3\": 25, \"2\": 0, \"1\": 0, \"0\": 0}";
-                        pstmt.setString(3, defaultGradeBoundaries);
-                        pstmt.setInt(4, 85);
-                        pstmt.setDouble(5, 0.0);
-                        pstmt.setBoolean(6, false);
+                        pstmt.setString(3, gradeBoundaries);
+                        pstmt.setInt(4, targetMark);
+                        pstmt.setDouble(5, 0.0); // Average mark will be recalculated later
+                        pstmt.setBoolean(6, isTargetMarkCurrentlyAchieved);
+                        pstmt.setBoolean(7, alreadyAchieved);
                         int rowsAffected = pstmt.executeUpdate();
                     }
                     catch (SQLException e) // Catches SQL exceptions during subject insertion. This handles potential database errors, such as unique constraint violations
@@ -132,6 +139,11 @@ public class Database
                             Double maximumMark = null;
                             String comment = "";
                             String description = "";
+
+                            Post existingPost = getPostById(work.getId());
+                            if (existingPost != null) {
+                                comment = existingPost.getComment();
+                            }
 
                             try
                             { // Attempts to fetch student submissions. This block handles potential network or API errors during submission retrieval
@@ -164,7 +176,7 @@ public class Database
 
                             Post tempPost = new Post(work.getId(), work.getTitle(), // Creates a new Post object. This demonstrates Encapsulation by creating an instance of the Post class
                                                     work.getCreationTime() != null ? work.getCreationTime().substring(0, 10) : null,
-                                                    work.getDueDate(), studentMark, maximumMark, 0.0, 0, comment, description, course.getId()); 
+                                                    work.getDueDate(), studentMark, maximumMark, 0.0, 0, comment, description, course.getId());
                             tempPost.calculatePercentageMark(); // Calculates percentage mark for the post
                             tempPost.calculateGrade(subjectGradeBoundaries); // Calculates grade for the post
 
@@ -248,7 +260,7 @@ public class Database
     public ArrayList<Subject> getAllSubjects()
     { // Retrieves all subjects from the database. Use of external libraries. This method provides a read-only view of subjects, demonstrating Abstraction over the database query
         ArrayList<Subject> subjects = new ArrayList<>(); // Initializes an empty list to hold Subject objects
-        String sql = "SELECT id, name, grade_boundaries, target_mark, average_mark, target_mark_achieved FROM subjects"; // SQL query to select all subjects
+        String sql = "SELECT id, name, grade_boundaries, target_mark, average_mark, is_target_mark_currently_achieved, already_achieved FROM subjects"; // SQL query to select all subjects
         try (Connection conn = connect(); // Establishes connection
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql))
@@ -256,7 +268,7 @@ public class Database
             while (rs.next()) // Loops through each row in the result set. Complexity: Loop. This iterates over the fetched database records
             {
                 subjects.add(new Subject(rs.getString("id"), rs.getString("name"), rs.getString("grade_boundaries"),
-                            rs.getInt("target_mark"), rs.getDouble("average_mark"), rs.getBoolean("target_mark_achieved")));
+                            rs.getInt("target_mark"), rs.getDouble("average_mark"), rs.getBoolean("is_target_mark_currently_achieved"), rs.getBoolean("already_achieved")));
                             // Creates a new Subject object and adds it to the list. This demonstrates Encapsulation by creating objects from database rows
             }
         }
@@ -286,7 +298,7 @@ public class Database
     public Subject getSubjectById(String id)
     { // Retrieves a subject by its ID from the database. Use of external libraries
     // This method provides a specific lookup functionality, demonstrating Abstraction over direct database access
-        String sql = "SELECT id, name, grade_boundaries, target_mark, average_mark, target_mark_achieved FROM subjects WHERE id = ?"; // SQL query to select a subject by ID
+        String sql = "SELECT id, name, grade_boundaries, target_mark, average_mark, is_target_mark_currently_achieved, already_achieved FROM subjects WHERE id = ?"; // SQL query to select a subject by ID
         try (Connection conn = connect(); // Establishes connection.
              PreparedStatement pstmt = conn.prepareStatement(sql))
         {
@@ -295,7 +307,7 @@ public class Database
             if (rs.next()) // Checks if a result was found
             {
                 return new Subject(rs.getString("id"), rs.getString("name"), rs.getString("grade_boundaries"),
-                                   rs.getInt("target_mark"), rs.getDouble("average_mark"), rs.getBoolean("target_mark_achieved")); // Creates and returns a new Subject object
+                                   rs.getInt("target_mark"), rs.getDouble("average_mark"), rs.getBoolean("is_target_mark_currently_achieved"), rs.getBoolean("already_achieved")); // Creates and returns a new Subject object
             }
         }
         catch (SQLException e) // Catches SQL exceptions during subject fetching. This handles potential database errors during data retrieval
@@ -305,9 +317,46 @@ public class Database
         return null; // Returns null if no subject is found or an error occurs
     }
 
+    public Post getPostById(String id)
+    { // Retrieves a post by its ID from the database.
+        String sql = "SELECT id, title, creation_time, due_date, student_mark, maximum_mark, percentage_mark, grade, comment, description, subject_id FROM posts WHERE id = ?";
+        try (Connection conn = connect();
+             PreparedStatement pstmt = conn.prepareStatement(sql))
+        {
+            pstmt.setString(1, id);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next())
+            {
+                String postId = rs.getString("id");
+                String title = rs.getString("title");
+                String creationTimeString = rs.getString("creation_time");
+                String dueDateString = rs.getString("due_date");
+                Double studentMark = rs.getObject("student_mark", Double.class);
+                Double maximumMark = rs.getObject("maximum_mark", Double.class);
+                double percentageMark = rs.getDouble("percentage_mark");
+                int grade = rs.getInt("grade");
+                String comment = rs.getString("comment");
+                String description = rs.getString("description");
+                String retrievedSubjectId = rs.getString("subject_id");
+
+                Post post = new Post(postId, title, creationTimeString, null, studentMark, maximumMark, percentageMark, grade, comment, description, retrievedSubjectId);
+                if (dueDateString != null)
+                {
+                    post.setDueDate(LocalDate.parse(dueDateString));
+                }
+                return post;
+            }
+        }
+        catch (SQLException e)
+        {
+            System.err.println("Error fetching post by ID: " + e.getMessage());
+        }
+        return null; // Returns null if no post is found or an error occurs
+    }
+
     public void updateSubjectTargetMark(String subjectId, int targetMark) throws SQLException
     { // Updates the target mark for a subject and recalculates achievement status. Use of external libraries, Loop. This method demonstrates Encapsulation by modifying the subject's state in the database.
-        String sql = "UPDATE subjects SET target_mark = ?, target_mark_achieved = ? WHERE id = ?"; // SQL update statement.
+        String sql = "UPDATE subjects SET target_mark = ?, is_target_mark_currently_achieved = ?, already_achieved = ? WHERE id = ?"; // SQL update statement.
         try (Connection conn = connect(); // Establishes connection.
              PreparedStatement pstmt = conn.prepareStatement(sql))
         { // Prepares a statement.
@@ -325,11 +374,22 @@ public class Database
                 currentAverageMark = totalPercentage / posts.size(); // Calculates the current average mark.
             }
 
-            boolean achieved = (currentAverageMark >= targetMark); // Determines if target mark is achieved.
-            pstmt.setBoolean(2, achieved); // Sets the achieved status.
-            pstmt.setString(3, subjectId); // Sets the subject ID.
+            boolean isTargetMarkCurrentlyAchieved = (currentAverageMark >= targetMark); // Determines if target mark is currently achieved.
+            pstmt.setBoolean(2, isTargetMarkCurrentlyAchieved); // Sets the currently achieved status.
+
+            // Determine already_achieved status
+            Subject existingSubject = getSubjectById(subjectId);
+            boolean alreadyAchieved = existingSubject.isAlreadyAchieved();
+            if (isTargetMarkCurrentlyAchieved) {
+                alreadyAchieved = true;
+            } else if (existingSubject.getTargetMark() < targetMark && currentAverageMark < targetMark) {
+                // If target mark increased and current average is below new target, reset already_achieved
+                alreadyAchieved = false;
+            }
+            pstmt.setBoolean(3, alreadyAchieved); // Sets the already achieved status.
+            pstmt.setString(4, subjectId); // Sets the subject ID.
             pstmt.executeUpdate(); // Executes the update.
-            updateSubjectTargetMarkAchievedStatus(subjectId, achieved); // Updates the target mark achieved status. This demonstrates a chained update.
+            updateSubjectTargetMarkAchievedStatus(subjectId, isTargetMarkCurrentlyAchieved, alreadyAchieved); // Updates the target mark achieved status. This demonstrates a chained update.
         }
     }
 
@@ -345,14 +405,15 @@ public class Database
         }
     }
 
-    public void updateSubjectTargetMarkAchievedStatus(String subjectId, boolean targetMarkAchieved) throws SQLException
+    public void updateSubjectTargetMarkAchievedStatus(String subjectId, boolean isTargetMarkCurrentlyAchieved, boolean alreadyAchieved) throws SQLException
     { // Updates the target mark achieved status for a subject in the database. Use of external libraries. This method provides a direct way to update a boolean flag for a subject.
-        String sql = "UPDATE subjects SET target_mark_achieved = ? WHERE id = ?"; // SQL update statement.
+        String sql = "UPDATE subjects SET is_target_mark_currently_achieved = ?, already_achieved = ? WHERE id = ?"; // SQL update statement.
         try (Connection conn = connect(); // Establishes connection.
              PreparedStatement pstmt = conn.prepareStatement(sql))
         { // Prepares a statement.
-            pstmt.setBoolean(1, targetMarkAchieved); // Sets the target mark achieved status parameter.
-            pstmt.setString(2, subjectId); // Sets the subject ID parameter.
+            pstmt.setBoolean(1, isTargetMarkCurrentlyAchieved); // Sets the target mark currently achieved status parameter.
+            pstmt.setBoolean(2, alreadyAchieved); // Sets the already achieved status parameter.
+            pstmt.setString(3, subjectId); // Sets the subject ID parameter.
             pstmt.executeUpdate(); // Executes the update.
         }
     }
