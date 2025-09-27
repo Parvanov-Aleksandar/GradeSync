@@ -112,22 +112,26 @@ public class GUI extends JFrame
     { // Displays the post list view for a selected subject. Complexity: Use of additional libraries, Loop.
         postListPanel.removeAll(); // Clears previous content from the panel.
  
-        currentSubject = database.getSubjectById(subjectId); // Retrieves the subject from the database.
-        if (currentSubject == null)
-        { // Checks if the subject was found.
-            JOptionPane.showMessageDialog(this, "Subject not found.", "Error", JOptionPane.ERROR_MESSAGE); // Displays an error message.
-            showSubjectListView(); // Returns to the subject list view.
-            return;
-        }
-        List<Post> postsForSubject = database.getPostsBySubjectId(subjectId); // Retrieves posts for the subject
-        for (Post post : postsForSubject) // Adds each post to the current subject
-        {
-            currentSubject.addPost(post);
-        }
- 
-        JPanel topPanel = new JPanel(new BorderLayout()); // Panel for back button and title.
-        JPanel infoPanel = new JPanel(); // Panel for target and average marks.
-        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS)); // Sets vertical layout for info panel.
+        // Establish a connection for this view's operations
+        java.sql.Connection conn = null;
+        try {
+            conn = database.connect(); // Assuming database.connect() is public and returns a Connection
+            currentSubject = database.getSubjectById(subjectId); // Retrieves the subject from the database.
+            if (currentSubject == null)
+            { // Checks if the subject was found.
+                JOptionPane.showMessageDialog(this, "Subject not found.", "Error", JOptionPane.ERROR_MESSAGE); // Displays an error message.
+                showSubjectListView(); // Returns to the subject list view.
+                return;
+            }
+            List<Post> postsForSubject = database.getPostsBySubjectId(conn, subjectId); // Retrieves posts for the subject using the shared connection
+            for (Post post : postsForSubject) // Adds each post to the current subject
+            {
+                currentSubject.addPost(post);
+            }
+     
+            JPanel topPanel = new JPanel(new BorderLayout()); // Panel for back button and title.
+            JPanel infoPanel = new JPanel(); // Panel for target and average marks.
+            infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS)); // Sets vertical layout for info panel.
  
         JButton backButton = new JButton("Back"); // Creates a back button.
         backButton.addActionListener(e -> showSubjectListView()); // Adds action listener to go back to subject list.
@@ -148,12 +152,14 @@ public class GUI extends JFrame
             @Override
             public void actionPerformed(ActionEvent e) // Handles action when target mark is entered
             {
+                java.sql.Connection conn = null;
                 try
                 { // Attempts to parse and update target mark
+                    conn = database.connect(); // Establish a connection for this operation
                     int newTargetMark = Integer.parseInt(targetMarkField.getText()); // Parses new target mark
                     if (newTargetMark >= 0 && newTargetMark <= 100) // Checks if new target mark is within the acceptable percentage range
                     {
-                        database.updateSubjectTargetMark(currentSubject.getId(), newTargetMark); // Updates target mark in database
+                        database.updateSubjectTargetMark(conn, currentSubject.getId(), newTargetMark); // Updates target mark in database using the shared connection
                         currentSubject.setTargetMark(newTargetMark); // Updates in-memory subject object
                         JOptionPane.showMessageDialog(GUI.this, "Target mark updated successfully!"); // Shows success message
  
@@ -163,7 +169,7 @@ public class GUI extends JFrame
                             JOptionPane.showMessageDialog(GUI.this, "Congratulations! You have achieved your target grade for this subject!",
                                                     "Target Achieved", JOptionPane.INFORMATION_MESSAGE); // Shows congratulatory message
                             try {
-                                database.updateSubjectTargetMarkAchievedStatus(currentSubject.getId(), true, true);
+                                database.updateSubjectTargetMarkAchievedStatus(conn, currentSubject.getId(), true, true); // Use shared connection
                                 currentSubject.setAlreadyAchieved(true); // Update in-memory object as well
                             } catch (java.sql.SQLException ex) {
                                 System.err.println("Error updating already_achieved status: " + ex.getMessage());
@@ -185,6 +191,14 @@ public class GUI extends JFrame
                 {
                     JOptionPane.showMessageDialog(GUI.this, "Error saving target mark to database: " + ex.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE); // Shows database error
                     targetMarkField.setText(String.valueOf(currentSubject.getTargetMark())); // Reverts to old value
+                } finally {
+                    if (conn != null) {
+                        try {
+                            conn.close();
+                        } catch (java.sql.SQLException ex) {
+                            System.err.println("Error closing connection: " + ex.getMessage());
+                        }
+                    }
                 }
             }
         });
@@ -205,12 +219,14 @@ public class GUI extends JFrame
         { // Checks if target mark is achieved.
             JOptionPane.showMessageDialog(this, "Congratulations! You have achieved your target grade for this subject!",
                                     "Target Achieved", JOptionPane.INFORMATION_MESSAGE); // Shows congratulatory message.
+            // Reuse the connection from showPostListView
             try {
-                database.updateSubjectTargetMarkAchievedStatus(currentSubject.getId(), true, true);
+                database.updateSubjectTargetMarkAchievedStatus(conn, currentSubject.getId(), true, true); // Use shared connection
                 currentSubject.setAlreadyAchieved(true); // Update in-memory object as well
             } catch (java.sql.SQLException ex) {
                 System.err.println("Error updating already_achieved status: " + ex.getMessage());
             }
+            // The connection will be closed by the finally block of showPostListView
         }
  
         JPanel headerContainerPanel = new JPanel(); // Container for header and info panels.
@@ -224,10 +240,10 @@ public class GUI extends JFrame
         JScrollPane scrollPane = new JScrollPane(postsPanel); // Adds scrollability.
         postListPanel.add(scrollPane, BorderLayout.CENTER); // Adds scroll pane to post list panel.
  
-        List<Post> posts = database.getPostsBySubjectId(subjectId); // Retrieves posts for the subject.
+        List<Post> posts = database.getPostsBySubjectId(conn, subjectId); // Retrieves posts for the subject using the shared connection.
         if (posts != null && !posts.isEmpty())
         { // Checks if posts exist.
-            for (Post post : postsForSubject)
+            for (Post post : posts) // Use 'posts' directly, not 'postsForSubject'
             { // Iterates through each post to create a button. Complexity: Loop.
                 JButton postButton = new JButton(post.getTitle()); // Creates a button for the post.
                 postButton.setAlignmentX(Component.CENTER_ALIGNMENT); // Centers the button horizontally.
@@ -253,6 +269,18 @@ public class GUI extends JFrame
  
         CardLayout cl = (CardLayout) (mainPanel.getLayout()); // Gets CardLayout from main panel.
         cl.show(mainPanel, "PostListView"); // Shows "PostListView" card.
+        } catch (java.sql.SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Error loading posts: " + ex.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            showSubjectListView(); // Return to subject list view on error
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.close();
+                } catch (java.sql.SQLException ex) {
+                    System.err.println("Error closing connection: " + ex.getMessage());
+                }
+            }
+        }
     }
 
     private void showPostDetailDialog(Post post)
@@ -322,7 +350,7 @@ public class GUI extends JFrame
                 String newComment = commentArea.getText();
                 try
                 {
-                    database.updatePostMarkAndComment(post.getId(), post.getStudentMark(), newComment);
+                    database.updatePostMarkAndComment(post.getId(), post.getStudentMark(), newComment); // Call without connection, let it manage its own
                     post.setComment(newComment); // Update the in-memory post object
                     JOptionPane.showMessageDialog(postDetailDialog, "Comment saved successfully!");
                 }

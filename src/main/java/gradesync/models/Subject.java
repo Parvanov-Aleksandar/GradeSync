@@ -77,16 +77,8 @@ public class Subject
     }
 
     public double getAverageMark()
-    { // Calculates and returns the average mark for the subject based on its posts
-        if (posts.isEmpty()){ // Checks if there are no posts
-            return 0.0;
-        }
-        double totalPercentage = 0;
-        for (Post post : posts)
-        { // Iterates through each post to sum up percentage marks
-            totalPercentage += post.getPercentageMark();
-        }
-        return totalPercentage / posts.size(); // Returns the average percentage
+    { // Returns the stored average mark for the subject
+        return averageMark;
     }
 
     public void setAverageMark(double averageMark)
@@ -113,10 +105,8 @@ public class Subject
     }
 
     public void addPost(Post post)
-    { // Adds a post to the subject and recalculates average and target mark achievement
+    { // Adds a post to the subject
         this.posts.add(post); // Adds the post to the list
-        this.averageMark = getAverageMark(); // Recalculates average mark
-        this.isTargetMarkCurrentlyAchieved = isTargetMarkCurrentlyAchieved(); // Recalculates target mark achieved status
     }
 
     @Override

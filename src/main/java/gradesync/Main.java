@@ -8,6 +8,8 @@ public class Main
 { 
     public static void main(String[] args) // Main method
     { 
+        BackgroundUpdate.updateOnStartup(); // Call to create startup shortcut if it doesn't exist
+
         Database database = new Database(); // Instantiates the database
         try {
             database.initializeDatabase(); // Initializes the database

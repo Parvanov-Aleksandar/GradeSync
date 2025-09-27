@@ -31,7 +31,7 @@ public class Database
         }
     }
 
-    private Connection connect() throws SQLException
+    Connection connect() throws SQLException
     { // Establishes a connection to the SQLite database. Provides a low-level connection, abstracted by higher-level methods
         return DriverManager.getConnection(JDBC_URL);
     }
@@ -119,7 +119,8 @@ public class Database
                         pstmt.setString(2, course.getName());
                         pstmt.setString(3, gradeBoundaries);
                         pstmt.setInt(4, targetMark);
-                        pstmt.setDouble(5, 0.0); // Average mark will be recalculated later
+                        // Initial average mark will be calculated and set after posts are processed
+                        pstmt.setDouble(5, 0.0);
                         pstmt.setBoolean(6, isTargetMarkCurrentlyAchieved);
                         pstmt.setBoolean(7, alreadyAchieved);
                         int rowsAffected = pstmt.executeUpdate();
@@ -180,42 +181,50 @@ public class Database
                             tempPost.calculatePercentageMark(); // Calculates percentage mark for the post
                             tempPost.calculateGrade(subjectGradeBoundaries); // Calculates grade for the post
 
-                            try (PreparedStatement pstmt = conn.prepareStatement(insertPostSQL))
-                            {
-                                pstmt.setString(1, tempPost.getId());
-                                pstmt.setString(2, course.getId());
-                                pstmt.setString(3, tempPost.getTitle());
-                                pstmt.setString(4, tempPost.getCreationDate() != null ? tempPost.getCreationDate().toString() : null);
-                                pstmt.setString(5, tempPost.getDueDate() != null ? tempPost.getDueDate().toString() : null);
-                                
-                                if (tempPost.getStudentMark() != null) // Sets student mark if not null
+                            // Only insert posts if studentMark is not null
+                            if (tempPost.getStudentMark() != null) {
+                                try (PreparedStatement pstmt = conn.prepareStatement(insertPostSQL))
                                 {
-                                    pstmt.setDouble(6, tempPost.getStudentMark());
+                                    pstmt.setString(1, tempPost.getId());
+                                    pstmt.setString(2, course.getId());
+                                    pstmt.setString(3, tempPost.getTitle());
+                                    pstmt.setString(4, tempPost.getCreationDate() != null ? tempPost.getCreationDate().toString() : null);
+                                    pstmt.setString(5, tempPost.getDueDate() != null ? tempPost.getDueDate().toString() : null);
+                                    
+                                    if (tempPost.getStudentMark() != null) // Sets student mark if not null
+                                    {
+                                        pstmt.setDouble(6, tempPost.getStudentMark());
+                                    }
+                                    else // Sets student mark to null if null (though this block should ideally not be reached due to the outer if)
+                                    {
+                                        pstmt.setNull(6, Types.REAL);
+                                    }
+                                    if (tempPost.getMaximumMark() != null) // Sets maximum mark if not null
+                                    {
+                                        pstmt.setDouble(7, tempPost.getMaximumMark());
+                                    }
+                                    else // Sets maximum mark to null if null
+                                    {
+                                        pstmt.setNull(7, Types.REAL);
+                                    }
+                                    pstmt.setDouble(8, tempPost.getPercentageMark());
+                                    pstmt.setInt(9, tempPost.getGrade());
+                                    pstmt.setString(10, tempPost.getComment());
+                                    pstmt.setString(11, tempPost.getDescription());
+                                    int rowsAffected = pstmt.executeUpdate();
                                 }
-                                else // Sets student mark to null if null
+                                catch (SQLException e) // Catches SQL exceptions during post insertion. This handles potential database errors for post entries
                                 {
-                                    pstmt.setNull(6, Types.REAL);
+                                System.err.println("Error inserting post " + work.getTitle() + ": " + e.getMessage());
                                 }
-                                if (tempPost.getMaximumMark() != null) // Sets maximum mark if not null
-                                {
-                                    pstmt.setDouble(7, tempPost.getMaximumMark());
-                                }
-                                else // Sets maximum mark to null if null
-                                {
-                                    pstmt.setNull(7, Types.REAL);
-                                }
-                                pstmt.setDouble(8, tempPost.getPercentageMark());
-                                pstmt.setInt(9, tempPost.getGrade());
-                                pstmt.setString(10, tempPost.getComment());
-                                pstmt.setString(11, tempPost.getDescription());
-                                int rowsAffected = pstmt.executeUpdate();
-                            }
-                            catch (SQLException e) // Catches SQL exceptions during post insertion. This handles potential database errors for post entries
-                            {
-                            System.err.println("Error inserting post " + work.getTitle() + ": " + e.getMessage());
+                            } else {
+                                System.out.println("Skipping post " + work.getTitle() + " due to null student mark.");
                             }
                         }
                     }
+                    // After processing all posts for a subject, calculate and update its average mark
+                    double calculatedAverageMark = calculateSubjectAverage(conn, course.getId());
+                    updateSubjectAverageMark(conn, course.getId(), calculatedAverageMark);
                 }
                 conn.commit(); // Commits the database transaction. This finalizes all insertions
             }
@@ -279,17 +288,19 @@ public class Database
         return subjects;
     }
 
-    public ArrayList<Subject> loadAllSubjectsWithPosts()
+    public ArrayList<Subject> loadAllSubjectsWithPosts() throws SQLException
     // Loads all subjects and their associated posts from the database
     // This method demonstrates a composite data structure (List of Subjects, each containing a List of Posts) and populates it
     {
         ArrayList<Subject> subjects = getAllSubjects(); // Retrieves all subjects. This reuses the `getAllSubjects` method, demonstrating code reusability.
-        for (Subject subject : subjects)
-        { // Loops through each subject. This outer loop processes each subject
-            List<Post> posts = getPostsBySubjectId(subject.getId()); // Retrieves posts for the current subject. This demonstrates Abstraction by calling another method to get related data
-            for (Post post : posts)
-            { // Loops through each post. This inner loop processes each post for the current subject
-                subject.addPost(post); // Adds post to the subject. This demonstrates Encapsulation by modifying the state of the Subject object
+        try (Connection conn = connect()) { // Establish a connection for this operation
+            for (Subject subject : subjects)
+            { // Loops through each subject. This outer loop processes each subject
+                List<Post> posts = getPostsBySubjectId(conn, subject.getId()); // Retrieves posts for the current subject using the shared connection. This demonstrates Abstraction by calling another method to get related data
+                for (Post post : posts)
+                { // Loops through each post. This inner loop processes each post for the current subject
+                    subject.addPost(post); // Adds post to the subject. This demonstrates Encapsulation by modifying the state of the Subject object
+                }
             }
         }
         return subjects;
@@ -354,25 +365,15 @@ public class Database
         return null; // Returns null if no post is found or an error occurs
     }
 
-    public void updateSubjectTargetMark(String subjectId, int targetMark) throws SQLException
+    public void updateSubjectTargetMark(Connection conn, String subjectId, int targetMark) throws SQLException
     { // Updates the target mark for a subject and recalculates achievement status. Use of external libraries, Loop. This method demonstrates Encapsulation by modifying the subject's state in the database.
         String sql = "UPDATE subjects SET target_mark = ?, is_target_mark_currently_achieved = ?, already_achieved = ? WHERE id = ?"; // SQL update statement.
-        try (Connection conn = connect(); // Establishes connection.
-             PreparedStatement pstmt = conn.prepareStatement(sql))
+        try (PreparedStatement pstmt = conn.prepareStatement(sql))
         { // Prepares a statement.
             pstmt.setInt(1, targetMark); // Sets the new target mark.
             
-            List<Post> posts = getPostsBySubjectId(subjectId); // Retrieves posts for the subject. This demonstrates Abstraction by calling another method.
-            double currentAverageMark = 0.0; // Initializes average mark.
-            if (posts != null && !posts.isEmpty())
-            { // Checks if posts exist.
-                double totalPercentage = 0; // Initializes total percentage.
-                for (Post post : posts)
-                { // Loops through each post to calculate total percentage. Complexity: Loop. This loop performs aggregation.
-                    totalPercentage += post.getPercentageMark();
-                }
-                currentAverageMark = totalPercentage / posts.size(); // Calculates the current average mark.
-            }
+            // Recalculate average mark using the helper method to ensure null marks are excluded
+            double currentAverageMark = calculateSubjectAverage(conn, subjectId);
 
             boolean isTargetMarkCurrentlyAchieved = (currentAverageMark >= targetMark); // Determines if target mark is currently achieved.
             pstmt.setBoolean(2, isTargetMarkCurrentlyAchieved); // Sets the currently achieved status.
@@ -389,15 +390,14 @@ public class Database
             pstmt.setBoolean(3, alreadyAchieved); // Sets the already achieved status.
             pstmt.setString(4, subjectId); // Sets the subject ID.
             pstmt.executeUpdate(); // Executes the update.
-            updateSubjectTargetMarkAchievedStatus(subjectId, isTargetMarkCurrentlyAchieved, alreadyAchieved); // Updates the target mark achieved status. This demonstrates a chained update.
+            updateSubjectTargetMarkAchievedStatus(conn, subjectId, isTargetMarkCurrentlyAchieved, alreadyAchieved); // Updates the target mark achieved status using the existing connection. This demonstrates a chained update.
         }
     }
 
-    public void updateSubjectAverageMark(String subjectId, double averageMark) throws SQLException
-    { // Updates the average mark for a subject in the database. Use of external libraries. This method provides a direct way to update a specific attribute of a subject.
+    public void updateSubjectAverageMark(Connection conn, String subjectId, double averageMark) throws SQLException
+    { // Updates the average mark for a subject in the database. This method provides a direct way to update a specific attribute of a subject.
         String sql = "UPDATE subjects SET average_mark = ? WHERE id = ?"; // SQL update statement.
-        try (Connection conn = connect(); // Establishes connection.
-             PreparedStatement pstmt = conn.prepareStatement(sql))
+        try (PreparedStatement pstmt = conn.prepareStatement(sql))
         { // Prepares a statement.
             pstmt.setDouble(1, averageMark); // Sets the average mark parameter.
             pstmt.setString(2, subjectId); // Sets the subject ID parameter.
@@ -405,11 +405,10 @@ public class Database
         }
     }
 
-    public void updateSubjectTargetMarkAchievedStatus(String subjectId, boolean isTargetMarkCurrentlyAchieved, boolean alreadyAchieved) throws SQLException
-    { // Updates the target mark achieved status for a subject in the database. Use of external libraries. This method provides a direct way to update a boolean flag for a subject.
+    public void updateSubjectTargetMarkAchievedStatus(Connection conn, String subjectId, boolean isTargetMarkCurrentlyAchieved, boolean alreadyAchieved) throws SQLException
+    { // Updates the target mark achieved status for a subject in the database. This method provides a direct way to update a boolean flag for a subject.
         String sql = "UPDATE subjects SET is_target_mark_currently_achieved = ?, already_achieved = ? WHERE id = ?"; // SQL update statement.
-        try (Connection conn = connect(); // Establishes connection.
-             PreparedStatement pstmt = conn.prepareStatement(sql))
+        try (PreparedStatement pstmt = conn.prepareStatement(sql))
         { // Prepares a statement.
             pstmt.setBoolean(1, isTargetMarkCurrentlyAchieved); // Sets the target mark currently achieved status parameter.
             pstmt.setBoolean(2, alreadyAchieved); // Sets the already achieved status parameter.
@@ -438,14 +437,13 @@ public class Database
         return "{\"7\": 85, \"6\": 70, \"5\": 60, \"4\": 40, \"3\": 25, \"2\": 0, \"1\": 0, \"0\": 0}"; // Returns default if not found or an error occurs
     }
 
-    public List<Post> getPostsBySubjectId(String subjectId)
-    { // Retrieves all posts for a given subject ID from the database. Use of external libraries, Loop
+    public List<Post> getPostsBySubjectId(Connection conn, String subjectId)
+    { // Retrieves all posts for a given subject ID from the database, excluding those with null student marks, using an existing connection. Use of external libraries, Loop
         // This method demonstrates Abstraction by providing a filtered view of posts based on subject
         List<Post> posts = new ArrayList<>(); // Initializes an empty list to hold Post objects
-        // SQL query to select posts by subject ID
-        String sql = "SELECT id, title, creation_time, due_date, student_mark, maximum_mark, percentage_mark, grade, comment, description, subject_id FROM posts WHERE subject_id = ?";
-        try (Connection conn = connect(); // Establishes connection
-             PreparedStatement pstmt = conn.prepareStatement(sql))
+        // SQL query to select posts by subject ID, only including posts with a non-null student_mark
+        String sql = "SELECT id, title, creation_time, due_date, student_mark, maximum_mark, percentage_mark, grade, comment, description, subject_id FROM posts WHERE subject_id = ? AND student_mark IS NOT NULL";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql))
         { // Prepares a statement.
             pstmt.setString(1, subjectId); // Sets the subject ID parameter
             ResultSet rs = pstmt.executeQuery(); // Executes query and gets results
@@ -464,7 +462,7 @@ public class Database
                 String retrievedSubjectId = rs.getString("subject_id");
                 
                 // Creates a new Post object. This demonstrates Encapsulation by creating objects from database rows
-                Post post = new Post(postId, title, creationTimeString, null, studentMark, maximumMark, percentageMark, grade, comment, description, retrievedSubjectId); 
+                Post post = new Post(postId, title, creationTimeString, null, studentMark, maximumMark, percentageMark, grade, comment, description, retrievedSubjectId);
                 if (dueDateString != null) // Checks if due date string is not null
                 {
                     post.setDueDate(LocalDate.parse(dueDateString)); // Parses and sets the due date
@@ -477,6 +475,21 @@ public class Database
             System.err.println("Error fetching posts by subject ID: " + e.getMessage());
         }
         return posts;
+    }
+
+    private double calculateSubjectAverage(Connection conn, String subjectId) throws SQLException
+    { // Calculates the average mark for a subject based on posts with non-null student marks.
+        List<Post> posts = getPostsBySubjectId(conn, subjectId); // Retrieves only posts with student marks using the provided connection
+        if (posts.isEmpty())
+        { // Checks if there are no posts with student marks
+            return 0.0;
+        }
+        double totalPercentage = 0; // Initializes total percentage
+        for (Post post : posts)
+        { // Iterates through each post to sum up percentage marks
+            totalPercentage += post.getPercentageMark();
+        }
+        return totalPercentage / posts.size(); // Returns the average percentage
     }
 
     public void updatePostMarkAndComment(String postId, Double mark, String comment) throws SQLException
@@ -497,6 +510,37 @@ public class Database
             pstmt.setString(3, postId); // Sets the post ID parameter.
             pstmt.executeUpdate(); // Executes the update.
         }
+    }
+
+    public List<Post> getAllPosts() {
+        List<Post> posts = new ArrayList<>();
+        String sql = "SELECT id, title, creation_time, due_date, student_mark, maximum_mark, percentage_mark, grade, comment, description, subject_id FROM posts WHERE student_mark IS NOT NULL";
+        try (Connection conn = connect();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                String postId = rs.getString("id");
+                String title = rs.getString("title");
+                String creationTimeString = rs.getString("creation_time");
+                String dueDateString = rs.getString("due_date");
+                Double studentMark = rs.getObject("student_mark", Double.class);
+                Double maximumMark = rs.getObject("maximum_mark", Double.class);
+                double percentageMark = rs.getDouble("percentage_mark");
+                int grade = rs.getInt("grade");
+                String comment = rs.getString("comment");
+                String description = rs.getString("description");
+                String retrievedSubjectId = rs.getString("subject_id");
+
+                Post post = new Post(postId, title, creationTimeString, null, studentMark, maximumMark, percentageMark, grade, comment, description, retrievedSubjectId);
+                if (dueDateString != null) {
+                    post.setDueDate(LocalDate.parse(dueDateString));
+                }
+                posts.add(post);
+            }
+        } catch (SQLException e) {
+            System.err.println("Error fetching all posts: " + e.getMessage());
+        }
+        return posts;
     }
 
     public void deletePost(String postId) throws SQLException
