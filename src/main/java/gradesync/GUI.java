@@ -47,8 +47,10 @@ public class GUI extends JFrame
         JButton updateButton = new JButton("Update from Google Classroom");
         updateButton.addActionListener(new ActionListener() {
             @Override
-            public void actionPerformed(ActionEvent e) {
-                try {
+            public void actionPerformed(ActionEvent e)
+            {
+                try
+                {
                     database.updateDatabaseFromAPI();
                     JOptionPane.showMessageDialog(GUI.this, "Data updated successfully from Google Classroom!");
                     
@@ -60,7 +62,9 @@ public class GUI extends JFrame
                     revalidate();
                     repaint();
 
-                } catch (Exception ex) {
+                }
+                catch (Exception ex)
+                {
                     JOptionPane.showMessageDialog(GUI.this, "Error updating data: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
                 }
             }
