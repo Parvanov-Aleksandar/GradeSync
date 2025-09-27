@@ -131,7 +131,7 @@ public class BackgroundUpdate {
 
         // Check for new graded posts
         System.out.println("BackgroundUpdate: Checking for new graded posts.");
-        checkForNewGradedPosts(oldPosts, newPosts);
+        checkForNewGradedPosts(database, oldPosts, newPosts); // Pass database instance
         System.out.println("BackgroundUpdate: Finished checking for new graded posts.");
 
         // Check for target grade achievement
@@ -141,37 +141,47 @@ public class BackgroundUpdate {
         System.out.println("BackgroundUpdate: performBackgroundUpdate() completed.");
     }
 
-    private static void checkForNewGradedPosts(List<Post> oldPosts, List<Post> newPosts) {
+    private static void checkForNewGradedPosts(Database database, List<Post> oldPosts, List<Post> newPosts) {
         System.out.println("BackgroundUpdate: Entering checkForNewGradedPosts method.");
         if (newPosts == null || newPosts.isEmpty()) {
             System.out.println("BackgroundUpdate: No new posts to check.");
             return;
         }
-        for (Post newPost : newPosts) {
-            System.out.println("BackgroundUpdate: Processing new post: " + newPost.getTitle() + " (ID: " + newPost.getId() + ")");
-            boolean foundInOld = false;
-            if (oldPosts != null) {
-                for (Post oldPost : oldPosts) {
-                    if (newPost.getId().equals(oldPost.getId())) {
-                        foundInOld = true;
-                        System.out.println("BackgroundUpdate: Post found in old list. Checking for grade changes.");
-                        // Check if a grade was assigned or changed
-                        if (newPost.getStudentMark() != null && (oldPost.getStudentMark() == null || !newPost.getStudentMark().equals(oldPost.getStudentMark()))) {
-                            System.out.println("BackgroundUpdate: Grade changed for post: " + newPost.getTitle() + ". Showing notification.");
-                            showNotification("New Grade Received!", "You received a grade for: " + newPost.getTitle() + " in " + newPost.getSubjectId() + " - " + newPost.getPercentageMark() + "%");
-                        } else {
-                            System.out.println("BackgroundUpdate: No grade change or no grade assigned for post: " + newPost.getTitle());
-                        }
-                        break;
-                    }
-                }
+
+        // Convert oldPosts to a map for efficient lookup
+        java.util.Map<String, Post> oldPostsMap = new java.util.HashMap<>();
+        if (oldPosts != null) {
+            for (Post post : oldPosts) {
+                oldPostsMap.put(post.getId(), post);
             }
-            // If it's a completely new post with a grade
-            if (!foundInOld && newPost.getStudentMark() != null) {
-                System.out.println("BackgroundUpdate: Found a completely new graded post: " + newPost.getTitle() + ". Showing notification.");
-                showNotification("New Graded Post!", "A new graded post has been added: " + newPost.getTitle() + " in " + newPost.getSubjectId() + " - " + newPost.getPercentageMark() + "%");
-            } else if (!foundInOld && newPost.getStudentMark() == null) {
-                System.out.println("BackgroundUpdate: Found a new post without a grade: " + newPost.getTitle() + ". No notification.");
+        }
+
+        for (Post newPost : newPosts) {
+            // Since Database.getAllPosts() now filters for student_mark IS NOT NULL,
+            // we only need to check for grade changes or new graded posts.
+            
+            Post oldPost = oldPostsMap.get(newPost.getId());
+            String subjectName = "Unknown Subject"; // Default subject name
+
+            Subject subject = database.getSubjectById(newPost.getSubjectId());
+            if (subject != null) {
+                subjectName = subject.getName();
+            } else {
+                System.err.println("Warning: Could not fetch subject name for post " + newPost.getTitle() + " (Subject ID: " + newPost.getSubjectId() + ")");
+            }
+
+            if (oldPost != null) {
+                // Post existed before, check for grade change
+                if (!newPost.getStudentMark().equals(oldPost.getStudentMark())) {
+                    System.out.println("BackgroundUpdate: Grade changed for post: " + newPost.getTitle() + ". Showing notification.");
+                    showNotification("Grade Updated!", "Your grade for: " + newPost.getTitle() + " in " + subjectName + " has changed to " + String.format("%.2f", newPost.getPercentageMark()) + "%");
+                } else {
+                    System.out.println("BackgroundUpdate: No grade change for post: " + newPost.getTitle());
+                }
+            } else {
+                // Completely new post with a grade (already filtered by getAllPosts)
+                System.out.println("BackgroundUpdate: Found a new graded post: " + newPost.getTitle() + ". Showing notification.");
+                showNotification("New Grade Received!", "You received a grade for: " + newPost.getTitle() + " in " + subjectName + " - " + String.format("%.2f", newPost.getPercentageMark()) + "%");
             }
         }
         System.out.println("BackgroundUpdate: Exiting checkForNewGradedPosts method.");
