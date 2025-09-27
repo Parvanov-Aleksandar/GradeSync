@@ -288,10 +288,10 @@ public class GUI extends JFrame
         detailPanel.add(descriptionScrollPane);
         detailPanel.add(Box.createRigidArea(new Dimension(0, 10)));
  
-        JLabel studentMaxMarksLabel = new JLabel("Marks: " + (post.getStudentMark() != null ? String.format("%.2f", post.getStudentMark()) : "N/A") +
+        JLabel studentMarkLabel = new JLabel("Mark: " + (post.getStudentMark() != null ? String.format("%.2f", post.getStudentMark()) : "N/A") +
                                                  " / " + (post.getMaximumMark() != null ? String.format("%.2f", post.getMaximumMark()) : "N/A")); // Label for student and max marks
-        studentMaxMarksLabel.setFont(new Font("Arial", Font.PLAIN, 12));
-        detailPanel.add(studentMaxMarksLabel);
+        studentMarkLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+        detailPanel.add(studentMarkLabel);
  
         JLabel percentageLabel = new JLabel("Percentage: " + String.format("%.2f", post.getPercentageMark()) + "%"); // Percentage mark
         percentageLabel.setFont(new Font("Arial", Font.PLAIN, 12));
