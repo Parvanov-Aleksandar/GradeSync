@@ -302,20 +302,37 @@ public class GUI extends JFrame
         detailPanel.add(gradeLabel);
         detailPanel.add(Box.createRigidArea(new Dimension(0, 10)));
  
-        if (post.getComment() != null && !post.getComment().isEmpty()) // Comments, not implemented yet
+        JLabel commentLabel = new JLabel("Comment:");
+        commentLabel.setFont(new Font("Arial", Font.BOLD, 12));
+        detailPanel.add(commentLabel);
+        JTextArea commentArea = new JTextArea(post.getComment());
+        commentArea.setLineWrap(true);
+        commentArea.setWrapStyleWord(true);
+        JScrollPane commentScrollPane = new JScrollPane(commentArea);
+        commentScrollPane.setPreferredSize(new Dimension(350, 50));
+        detailPanel.add(commentScrollPane);
+        detailPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+
+        JButton saveCommentButton = new JButton("Save Comment");
+        saveCommentButton.addActionListener(new ActionListener()
         {
-            JLabel commentLabel = new JLabel("Comment:");
-            commentLabel.setFont(new Font("Arial", Font.BOLD, 12));
-            detailPanel.add(commentLabel);
-            JTextArea commentArea = new JTextArea(post.getComment());
-            commentArea.setEditable(false);
-            commentArea.setLineWrap(true);
-            commentArea.setWrapStyleWord(true);
-            JScrollPane commentScrollPane = new JScrollPane(commentArea);
-            commentScrollPane.setPreferredSize(new Dimension(350, 50));
-            detailPanel.add(commentScrollPane);
-        }
- 
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                String newComment = commentArea.getText();
+                try
+                {
+                    database.updatePostMarkAndComment(post.getId(), post.getStudentMark(), newComment);
+                    post.setComment(newComment); // Update the in-memory post object
+                    JOptionPane.showMessageDialog(postDetailDialog, "Comment saved successfully!");
+                }
+                catch (java.sql.SQLException ex) {
+                    JOptionPane.showMessageDialog(postDetailDialog, "Error saving comment: " + ex.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+        detailPanel.add(saveCommentButton);
+
         postDetailDialog.add(detailPanel);
         postDetailDialog.setVisible(true);
     }
