@@ -11,9 +11,12 @@ public class Main
         BackgroundUpdate.updateOnStartup(); // Call to create startup shortcut if it doesn't exist
 
         Database database = new Database(); // Instantiates the database
-        try {
+        try
+        {
             database.initializeDatabase(); // Initializes the database
-        } catch (SQLException | IOException e) {
+        }
+        catch (SQLException | IOException e)
+        {
             e.printStackTrace();
         }
         SwingUtilities.invokeLater(() ->

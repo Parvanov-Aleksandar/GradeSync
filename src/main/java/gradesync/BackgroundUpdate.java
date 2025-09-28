@@ -5,11 +5,8 @@ import gradesync.models.Subject;
 
 import javax.swing.*;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
@@ -21,74 +18,66 @@ import java.nio.file.Files;
 
 public class BackgroundUpdate {
 
-    private static final String JAR_NAME = "GradeSync-1.0-SNAPSHOT.jar";
-    private static final String STARTUP_FOLDER = System.getenv("APPDATA") + "\\Microsoft\\Windows\\Start Menu\\Programs\\Startup";
-
-    public static void main(String[] args) {
-        // This main method will be executed when the shortcut runs the background updater
-        // It does not create a GUI, but rather run the update logic in the background
-        System.out.println("BackgroundUpdate: Main method started.");
+    public static void main(String[] args)
+    {
+        // This main method will be executed when the vbs script is ran from the windows startup folder (automatically on startup)
+        // It does not create the GUI, but rather runs the update logic in the background
         
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-        System.out.println("BackgroundUpdate: Scheduler initialized. Task will run every 30 minutes.");
-        scheduler.scheduleAtFixedRate(() -> {
-            System.out.println("BackgroundUpdate: Executing scheduled update task.");
-            try {
+        scheduler.scheduleAtFixedRate(() ->
+        {
+            try
+            {
                 performBackgroundUpdate();
-                System.out.println("BackgroundUpdate: Scheduled update task completed successfully.");
-            } catch (IOException | SQLException e) {
+            }
+            catch (IOException | SQLException e)
+            {
                 System.err.println("BackgroundUpdate: Error during scheduled background update: " + e.getMessage());
                 e.printStackTrace(); // Print stack trace for detailed error
             }
-        }, 0, 1, TimeUnit.MINUTES); // Run every 30 minutes
+        }, 0, 30, TimeUnit.MINUTES); // Run every 30 minutes
     }
 
-    public static void updateOnStartup() {
+    public static void updateOnStartup()
+    {
         String startupFolderPath = null;
-        try {
+        try
+        {
             // 1. Determine the path to the Windows Startup folder (user-specific)
             String appData = System.getenv("APPDATA");
-            if (appData == null) {
+            if (appData == null)
+            {
                 appData = System.getProperty("user.home") + File.separator + "AppData" + File.separator + "Roaming";
             }
             startupFolderPath = Paths.get(appData, "Microsoft", "Windows", "Start Menu", "Programs", "Startup").toString();
-        } catch (Exception e) {
+        }
+        catch (Exception e)
+        {
             System.err.println("BackgroundUpdate: Could not determine APPDATA or Startup folder path: " + e.getMessage());
             e.printStackTrace();
             return;
-        }
-
-        File startupDir = new File(startupFolderPath);
-        System.out.println("BackgroundUpdate: Checking startup directory: " + startupFolderPath);
-        if (!startupDir.exists()) {
-            System.out.println("BackgroundUpdate: Startup directory does not exist. Creating: " + startupDir.getAbsolutePath());
-            if (startupDir.mkdirs()) {
-                System.out.println("BackgroundUpdate: Startup directory created successfully.");
-            } else {
-                System.err.println("BackgroundUpdate: Failed to create startup directory: " + startupDir.getAbsolutePath());
-                return;
-            }
-        } else {
-            System.out.println("BackgroundUpdate: Startup directory already exists.");
         }
 
         // Define the name of your VBScript file that will be placed in Startup
         String vbsFileName = "GradeSyncBackgroundUpdate.vbs";
         File vbsStartupFile = new File(startupFolderPath + File.separator + vbsFileName);
 
-        System.out.println("BackgroundUpdate: Checking if VBScript startup file exists: " + vbsStartupFile.getAbsolutePath());
-        if (!vbsStartupFile.exists()) {
-            System.out.println("BackgroundUpdate: VBScript startup file does not exist. Attempting to create it.");
-            try {
+        if (!vbsStartupFile.exists())
+        {
+            try
+            {
                 // --- Determine Application Paths ---
                 Path currentCodeSourcePath = Paths.get(gradesync.BackgroundUpdate.class.getProtectionDomain().getCodeSource().getLocation().toURI());
                 Path projectRootPath; // This will be C:\Coding\Java\GradeSync
 
-                if (Files.isDirectory(currentCodeSourcePath)) {
+                if (Files.isDirectory(currentCodeSourcePath))
+                {
                     // Running from IDE, e.g., C:\Coding\Java\GradeSync\target\classes
                     // Project root is two levels up from 'classes' (target/classes -> target -> projectRoot)
                     projectRootPath = currentCodeSourcePath.getParent().getParent();
-                } else {
+                }
+                else
+                {
                     // Running from a JAR, e.g., C:\Coding\Java\GradeSync\target\GradeSync-1.0-SNAPSHOT.jar
                     // JAR is in 'target', so project root is its parent's parent (target -> projectRoot)
                     projectRootPath = currentCodeSourcePath.getParent().getParent();
@@ -97,41 +86,33 @@ public class BackgroundUpdate {
                 String projectRoot = projectRootPath.normalize().toAbsolutePath().toString();
                 String appClassesOrJarPath = currentCodeSourcePath.normalize().toAbsolutePath().toString(); // This is target/classes or the JAR path
 
-                System.out.println("BackgroundUpdate: Project Root Directory: " + projectRoot);
-                System.out.println("BackgroundUpdate: Application Classes/JAR Path: " + appClassesOrJarPath);
-
                 File appCodeLocation = new File(appClassesOrJarPath);
-                if (!appCodeLocation.exists()) {
+                if (!appCodeLocation.exists())
+                {
                     System.err.println("BackgroundUpdate: ERROR: Application code location not found at " + appClassesOrJarPath + ". Cannot create VBScript.");
-                    throw new IOException("Application code location not found at " + appClassesOrJarPath + ".");
                 }
 
                 // Path to where Maven copies dependencies (e.g., C:\Coding\Java\GradeSync\target\lib)
                 Path dependenciesDirPath = Paths.get(projectRoot, "target", "lib");
-                System.out.println("BackgroundUpdate: Determined Dependencies Directory: " + dependenciesDirPath);
 
                 // Determine the path to 'java.exe' (as requested to keep functionality, even if it opens a window)
                 // If you later want truly silent, change this to 'javaw.exe'
                 String javaHome = System.getProperty("java.home");
                 Path javaExePath = Paths.get(javaHome, "bin", "java.exe");
-                if (!Files.exists(javaExePath)) {
+                if (!Files.exists(javaExePath))
+                {
                     System.err.println("BackgroundUpdate: ERROR: java.exe not found at " + javaExePath + ". Cannot create VBScript.");
-                    throw new IOException("java.exe not found at " + javaExePath);
                 }
-                System.out.println("BackgroundUpdate: Determined java.exe path: " + javaExePath);
 
-                // Fully qualified class name for BackgroundUpdate
+                // Full class name for BackgroundUpdate
                 String backgroundUpdateClassName = "gradesync.BackgroundUpdate";
 
                 // Construct the full classpath string
                 String fullClasspath = appClassesOrJarPath;
-                if (Files.exists(dependenciesDirPath) && Files.isDirectory(dependenciesDirPath)) {
+                if (Files.exists(dependenciesDirPath) && Files.isDirectory(dependenciesDirPath))
+                {
                     fullClasspath += ";" + dependenciesDirPath.toString() + File.separator + "*";
-                } else {
-                    System.out.println("BackgroundUpdate: Warning: Dependency directory not found or is not a directory: " + dependenciesDirPath + ". Dependencies might not be on classpath.");
                 }
-
-                System.out.println("BackgroundUpdate: Constructed Full Classpath: " + fullClasspath);
 
                 // --- Construct the VBScript content using Chr(34) for quotes ---
                 // Escape all backslashes in paths for VBScript string literals (e.g., C:\ -> C:\\)
@@ -157,22 +138,19 @@ public class BackgroundUpdate {
                     "\n" +
                     "objShell.Run strCommandToRun, 0, False\n"; // 0 for hidden window
 
-                System.out.println("BackgroundUpdate: VBScript content to be written:\n" + vbsContent);
-
                 // Write the VBScript content to the file in the Startup folder
                 Files.write(vbsStartupFile.toPath(), vbsContent.getBytes());
 
-                if (vbsStartupFile.exists()) {
-                    System.out.println("BackgroundUpdate: VBScript startup file created successfully at: " + vbsStartupFile.getAbsolutePath());
-                } else {
+                if (!vbsStartupFile.exists())
+                {
                     System.err.println("BackgroundUpdate: ERROR: VBScript startup file was not created.");
                 }
-            } catch (Exception e) {
+            }
+            catch (Exception e)
+            {
                 System.err.println("BackgroundUpdate: An unexpected error occurred while creating the VBScript startup file: " + e.getMessage());
                 e.printStackTrace();
             }
-        } else {
-            System.out.println("BackgroundUpdate: VBScript startup file already exists at: " + vbsStartupFile.getAbsolutePath());
         }
     }
 
