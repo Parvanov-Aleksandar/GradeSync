@@ -4,13 +4,20 @@ import gradesync.models.Post;
 import gradesync.models.Subject;
 
 import javax.swing.*;
+
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.nio.file.Files;
 
 public class BackgroundUpdate {
 
@@ -37,66 +44,135 @@ public class BackgroundUpdate {
     }
 
     public static void updateOnStartup() {
-        File startupDir = new File(STARTUP_FOLDER);
-        System.out.println("BackgroundUpdate: Checking startup directory: " + STARTUP_FOLDER);
+        String startupFolderPath = null;
+        try {
+            // 1. Determine the path to the Windows Startup folder (user-specific)
+            String appData = System.getenv("APPDATA");
+            if (appData == null) {
+                appData = System.getProperty("user.home") + File.separator + "AppData" + File.separator + "Roaming";
+            }
+            startupFolderPath = Paths.get(appData, "Microsoft", "Windows", "Start Menu", "Programs", "Startup").toString();
+        } catch (Exception e) {
+            System.err.println("BackgroundUpdate: Could not determine APPDATA or Startup folder path: " + e.getMessage());
+            e.printStackTrace();
+            return;
+        }
+
+        File startupDir = new File(startupFolderPath);
+        System.out.println("BackgroundUpdate: Checking startup directory: " + startupFolderPath);
         if (!startupDir.exists()) {
             System.out.println("BackgroundUpdate: Startup directory does not exist. Creating: " + startupDir.getAbsolutePath());
-            startupDir.mkdirs();
-            System.out.println("BackgroundUpdate: Startup directory created: " + startupDir.exists());
+            if (startupDir.mkdirs()) {
+                System.out.println("BackgroundUpdate: Startup directory created successfully.");
+            } else {
+                System.err.println("BackgroundUpdate: Failed to create startup directory: " + startupDir.getAbsolutePath());
+                return;
+            }
         } else {
             System.out.println("BackgroundUpdate: Startup directory already exists.");
         }
 
-        File shortcutFile = new File(STARTUP_FOLDER + File.separator + "GradeSyncBackgroundUpdate.lnk");
+        // Define the name of your VBScript file that will be placed in Startup
+        String vbsFileName = "GradeSyncBackgroundUpdate.vbs";
+        File vbsStartupFile = new File(startupFolderPath + File.separator + vbsFileName);
 
-        System.out.println("BackgroundUpdate: Checking if shortcut exists: " + shortcutFile.getAbsolutePath());
-        if (!shortcutFile.exists()) {
-            System.out.println("BackgroundUpdate: Shortcut does not exist. Attempting to create it.");
+        System.out.println("BackgroundUpdate: Checking if VBScript startup file exists: " + vbsStartupFile.getAbsolutePath());
+        if (!vbsStartupFile.exists()) {
+            System.out.println("BackgroundUpdate: VBScript startup file does not exist. Attempting to create it.");
             try {
-                // Get the path to the currently running JAR
-                String jarPath = new File("target", "GradeSync-1.0-SNAPSHOT.jar").getAbsolutePath();
-                System.out.println("BackgroundUpdate: Determined JAR path: " + jarPath);
-                File jarFile = new File(jarPath);
-                if (!jarFile.exists()) {
-                    System.err.println("BackgroundUpdate: ERROR: JAR file not found at " + jarPath + ". Cannot create shortcut.");
-                    throw new IOException("JAR file not found.");
-                }
-                System.out.println("BackgroundUpdate: JAR file exists at: " + jarPath);
+                // --- Determine Application Paths ---
+                Path currentCodeSourcePath = Paths.get(gradesync.BackgroundUpdate.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+                Path projectRootPath; // This will be C:\Coding\Java\GradeSync
 
-                // Create a VBScript to create the shortcut
-                String vbsScript =
-                    "Set WshShell = WScript.CreateObject(\"WScript.Shell\")\n" +
-                    "Set oShellLink = WshShell.CreateShortcut(\"" + shortcutFile.getAbsolutePath().replace("\\", "\\\\") + "\")\n" +
-                    "oShellLink.TargetPath = \"javaw.exe\"\n" +
-                    "oShellLink.Arguments = \"-jar \"\"" + jarPath.replace("\\", "\\\\") + "\"\" gradesync.BackgroundUpdate\"\n" +
-                    "oShellLink.WorkingDirectory = \"" + new File(jarPath).getParent().replace("\\", "\\\\") + "\"\n" +
-                    "oShellLink.WindowStyle = 7\n" + // Minimized window
-                    "oShellLink.Save\n";
-                System.out.println("BackgroundUpdate: VBScript content:\n" + vbsScript);
-
-                File tempVbs = File.createTempFile("createShortcut", ".vbs");
-                java.nio.file.Files.write(tempVbs.toPath(), vbsScript.getBytes());
-                System.out.println("BackgroundUpdate: Temporary VBScript file created at: " + tempVbs.getAbsolutePath());
-
-                ProcessBuilder pb = new ProcessBuilder("wscript", tempVbs.getAbsolutePath());
-                System.out.println("BackgroundUpdate: Executing VBScript with command: wscript " + tempVbs.getAbsolutePath());
-                Process p = pb.start();
-                int exitCode = p.waitFor();
-                System.out.println("BackgroundUpdate: VBScript execution finished with exit code: " + exitCode);
-                tempVbs.delete(); // Clean up the temporary VBScript file
-                System.out.println("BackgroundUpdate: Temporary VBScript file deleted.");
-
-                if (shortcutFile.exists()) {
-                    System.out.println("BackgroundUpdate: Startup shortcut created successfully at: " + shortcutFile.getAbsolutePath());
+                if (Files.isDirectory(currentCodeSourcePath)) {
+                    // Running from IDE, e.g., C:\Coding\Java\GradeSync\target\classes
+                    // Project root is two levels up from 'classes' (target/classes -> target -> projectRoot)
+                    projectRootPath = currentCodeSourcePath.getParent().getParent();
                 } else {
-                    System.err.println("BackgroundUpdate: ERROR: Shortcut file was not created despite VBScript execution.");
+                    // Running from a JAR, e.g., C:\Coding\Java\GradeSync\target\GradeSync-1.0-SNAPSHOT.jar
+                    // JAR is in 'target', so project root is its parent's parent (target -> projectRoot)
+                    projectRootPath = currentCodeSourcePath.getParent().getParent();
+                }
+
+                String projectRoot = projectRootPath.normalize().toAbsolutePath().toString();
+                String appClassesOrJarPath = currentCodeSourcePath.normalize().toAbsolutePath().toString(); // This is target/classes or the JAR path
+
+                System.out.println("BackgroundUpdate: Project Root Directory: " + projectRoot);
+                System.out.println("BackgroundUpdate: Application Classes/JAR Path: " + appClassesOrJarPath);
+
+                File appCodeLocation = new File(appClassesOrJarPath);
+                if (!appCodeLocation.exists()) {
+                    System.err.println("BackgroundUpdate: ERROR: Application code location not found at " + appClassesOrJarPath + ". Cannot create VBScript.");
+                    throw new IOException("Application code location not found at " + appClassesOrJarPath + ".");
+                }
+
+                // Path to where Maven copies dependencies (e.g., C:\Coding\Java\GradeSync\target\lib)
+                Path dependenciesDirPath = Paths.get(projectRoot, "target", "lib");
+                System.out.println("BackgroundUpdate: Determined Dependencies Directory: " + dependenciesDirPath);
+
+                // Determine the path to 'java.exe' (as requested to keep functionality, even if it opens a window)
+                // If you later want truly silent, change this to 'javaw.exe'
+                String javaHome = System.getProperty("java.home");
+                Path javaExePath = Paths.get(javaHome, "bin", "java.exe");
+                if (!Files.exists(javaExePath)) {
+                    System.err.println("BackgroundUpdate: ERROR: java.exe not found at " + javaExePath + ". Cannot create VBScript.");
+                    throw new IOException("java.exe not found at " + javaExePath);
+                }
+                System.out.println("BackgroundUpdate: Determined java.exe path: " + javaExePath);
+
+                // Fully qualified class name for BackgroundUpdate
+                String backgroundUpdateClassName = "gradesync.BackgroundUpdate";
+
+                // Construct the full classpath string
+                String fullClasspath = appClassesOrJarPath;
+                if (Files.exists(dependenciesDirPath) && Files.isDirectory(dependenciesDirPath)) {
+                    fullClasspath += ";" + dependenciesDirPath.toString() + File.separator + "*";
+                } else {
+                    System.out.println("BackgroundUpdate: Warning: Dependency directory not found or is not a directory: " + dependenciesDirPath + ". Dependencies might not be on classpath.");
+                }
+
+                System.out.println("BackgroundUpdate: Constructed Full Classpath: " + fullClasspath);
+
+                // --- Construct the VBScript content using Chr(34) for quotes ---
+                // Escape all backslashes in paths for VBScript string literals (e.g., C:\ -> C:\\)
+                String vbsProjectRoot = projectRoot.replace("\\", "\\\\");
+                String vbsJavaExePath = javaExePath.toString().replace("\\", "\\\\");
+                String vbsClasspath = fullClasspath.replace("\\", "\\\\");
+
+                // Build the VBScript content line by line using string concatenation in Java
+                // Chr(34) will be dynamically inserted into the VBScript string by Java.
+                String vbsContent =
+                    "Set objShell = CreateObject(\"WScript.Shell\")\n" +
+                    "\n" +
+                    "strProjectRoot = \"" + vbsProjectRoot + "\"\n" +
+                    "strJavaExe = \"" + vbsJavaExePath + "\"\n" +
+                    "strClasspath = strProjectRoot & \"\\\\target\\\\classes;\" & strProjectRoot & \"\\\\target\\\\lib\\\\*\"\n" + // Reconstructing classpath as VBScript variable
+                    "strMainClass = \"" + backgroundUpdateClassName + "\"\n" +
+                    "\n" +
+                    "strJavaArgs = \"-cp \" & Chr(34) & strClasspath & Chr(34) & \" \" & strMainClass\n" +
+                    "\n" +
+                    "strFullJavaCommand = Chr(34) & strJavaExe & Chr(34) & \" \" & strJavaArgs\n" +
+                    "\n" +
+                    "strCommandToRun = \"cmd /c \" & Chr(34) & \"cd /d \" & Chr(34) & strProjectRoot & Chr(34) & \" && \" & strFullJavaCommand & Chr(34)\n" +
+                    "\n" +
+                    "objShell.Run strCommandToRun, 0, False\n"; // 0 for hidden window
+
+                System.out.println("BackgroundUpdate: VBScript content to be written:\n" + vbsContent);
+
+                // Write the VBScript content to the file in the Startup folder
+                Files.write(vbsStartupFile.toPath(), vbsContent.getBytes());
+
+                if (vbsStartupFile.exists()) {
+                    System.out.println("BackgroundUpdate: VBScript startup file created successfully at: " + vbsStartupFile.getAbsolutePath());
+                } else {
+                    System.err.println("BackgroundUpdate: ERROR: VBScript startup file was not created.");
                 }
             } catch (Exception e) {
-                System.err.println("BackgroundUpdate: Error creating startup shortcut: " + e.getMessage());
+                System.err.println("BackgroundUpdate: An unexpected error occurred while creating the VBScript startup file: " + e.getMessage());
                 e.printStackTrace();
             }
         } else {
-            System.out.println("BackgroundUpdate: Startup shortcut already exists at: " + shortcutFile.getAbsolutePath());
+            System.out.println("BackgroundUpdate: VBScript startup file already exists at: " + vbsStartupFile.getAbsolutePath());
         }
     }
 
