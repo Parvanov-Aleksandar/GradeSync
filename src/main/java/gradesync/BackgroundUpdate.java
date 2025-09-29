@@ -35,7 +35,7 @@ public class BackgroundUpdate {
                 System.err.println("BackgroundUpdate: Error during scheduled background update: " + e.getMessage());
                 e.printStackTrace(); // Print stack trace for detailed error
             }
-        }, 0, 30, TimeUnit.MINUTES); // Run every 30 minutes
+        }, 0, 1, TimeUnit.MINUTES); // Run every 30 minutes
     }
 
     public static void updateOnStartup()
