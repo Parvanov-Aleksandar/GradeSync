@@ -22,7 +22,6 @@ public class BackgroundUpdate {
     {
         // This main method will be executed when the vbs script is ran from the windows startup folder (automatically on startup)
         // It does not create the GUI, but rather runs the update logic in the background
-        
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(() ->
         {
@@ -32,10 +31,9 @@ public class BackgroundUpdate {
             }
             catch (IOException | SQLException e)
             {
-                System.err.println("BackgroundUpdate: Error during scheduled background update: " + e.getMessage());
                 e.printStackTrace(); // Print stack trace for detailed error
             }
-        }, 0, 1, TimeUnit.MINUTES); // Run every 30 minutes
+        }, 0, 30, TimeUnit.MINUTES); // Run every 30 minutes
     }
 
     public static void updateOnStartup()
@@ -154,63 +152,46 @@ public class BackgroundUpdate {
         }
     }
 
-    private static void performBackgroundUpdate() throws IOException, SQLException {
-        System.out.println("BackgroundUpdate: Starting performBackgroundUpdate().");
-        Database database = new Database();
-        System.out.println("BackgroundUpdate: Database instance created.");
+    private static void performBackgroundUpdate() throws IOException, SQLException
+    {
+        Database database = new Database(); // Create a new instance of Database
         
         // Store previous state for comparison
-        System.out.println("BackgroundUpdate: Fetching old posts and subjects for comparison.");
         List<Post> oldPosts = database.getAllPosts(); // Assuming a method to get all posts
-        List<Subject> oldSubjects = database.getAllSubjects();
-        System.out.println("BackgroundUpdate: Old posts count: " + (oldPosts != null ? oldPosts.size() : "null"));
-        System.out.println("BackgroundUpdate: Old subjects count: " + (oldSubjects != null ? oldSubjects.size() : "null"));
+        List<Subject> oldSubjects = database.getAllSubjects(); // Old subjects with average_mark from DB
 
-        // Old subjects are already populated with average_mark from the database via getAllSubjects()
-        System.out.println("BackgroundUpdate: Old subjects loaded with database average marks.");
-
-        System.out.println("BackgroundUpdate: Calling database.updateDatabaseFromAPI().");
         database.updateDatabaseFromAPI(); // Update the database from API, which also calculates and stores new subject averages
-        System.out.println("BackgroundUpdate: database.updateDatabaseFromAPI() completed.");
 
         // Fetch new state after update
-        System.out.println("BackgroundUpdate: Fetching new posts and subjects after API update.");
         List<Post> newPosts = database.getAllPosts(); // Assuming a method to get all posts
         List<Subject> newSubjects = database.getAllSubjects(); // New subjects will have updated average marks from DB
-        System.out.println("BackgroundUpdate: New posts count: " + (newPosts != null ? newPosts.size() : "null"));
-        System.out.println("BackgroundUpdate: New subjects count: " + (newSubjects != null ? newSubjects.size() : "null"));
-
-        // No need to populate posts for new subjects here, as Subject.getAverageMark() now directly returns the stored value.
-        // The average mark is updated in the database during database.updateDatabaseFromAPI().
 
         // Check for new graded posts
-        System.out.println("BackgroundUpdate: Checking for new graded posts.");
         checkForNewGradedPosts(database, oldPosts, newPosts); // Pass database instance
-        System.out.println("BackgroundUpdate: Finished checking for new graded posts.");
 
         // Check for target grade achievement
-        System.out.println("BackgroundUpdate: Checking for target grade achievement.");
         checkForTargetGradeAchievement(oldSubjects, newSubjects); // This method will now use database-sourced averages
-        System.out.println("BackgroundUpdate: Finished checking for target grade achievement.");
-        System.out.println("BackgroundUpdate: performBackgroundUpdate() completed.");
     }
 
-    private static void checkForNewGradedPosts(Database database, List<Post> oldPosts, List<Post> newPosts) {
-        System.out.println("BackgroundUpdate: Entering checkForNewGradedPosts method.");
-        if (newPosts == null || newPosts.isEmpty()) {
-            System.out.println("BackgroundUpdate: No new posts to check.");
+    private static void checkForNewGradedPosts(Database database, List<Post> oldPosts, List<Post> newPosts)
+    {
+        if (newPosts == null || newPosts.isEmpty())
+        {
             return;
         }
 
         // Convert oldPosts to a map for efficient lookup
         java.util.Map<String, Post> oldPostsMap = new java.util.HashMap<>();
-        if (oldPosts != null) {
-            for (Post post : oldPosts) {
+        if (oldPosts != null)
+        {
+            for (Post post : oldPosts)
+            {
                 oldPostsMap.put(post.getId(), post);
             }
         }
 
-        for (Post newPost : newPosts) {
+        for (Post newPost : newPosts)
+        {
             // Since Database.getAllPosts() now filters for student_mark IS NOT NULL,
             // we only need to check for grade changes or new graded posts.
             
@@ -218,71 +199,61 @@ public class BackgroundUpdate {
             String subjectName = "Unknown Subject"; // Default subject name
 
             Subject subject = database.getSubjectById(newPost.getSubjectId());
-            if (subject != null) {
+            if (subject != null)
+            {
                 subjectName = subject.getName();
-            } else {
-                System.err.println("Warning: Could not fetch subject name for post " + newPost.getTitle() + " (Subject ID: " + newPost.getSubjectId() + ")");
             }
 
-            if (oldPost != null) {
+            if (oldPost != null)
+            {
                 // Post existed before, check for grade change
-                if (!newPost.getStudentMark().equals(oldPost.getStudentMark())) {
-                    System.out.println("BackgroundUpdate: Grade changed for post: " + newPost.getTitle() + ". Showing notification.");
+                if (!newPost.getStudentMark().equals(oldPost.getStudentMark()))
+                {
                     showNotification("Grade Updated!", "Your grade for: " + newPost.getTitle() + " in " + subjectName + " has changed to " + String.format("%.2f", newPost.getPercentageMark()) + "%");
-                } else {
-                    System.out.println("BackgroundUpdate: No grade change for post: " + newPost.getTitle());
                 }
-            } else {
+            }
+            else
+            {
                 // Completely new post with a grade (already filtered by getAllPosts)
-                System.out.println("BackgroundUpdate: Found a new graded post: " + newPost.getTitle() + ". Showing notification.");
                 showNotification("New Grade Received!", "You received a grade for: " + newPost.getTitle() + " in " + subjectName + " - " + String.format("%.2f", newPost.getPercentageMark()) + "%");
             }
         }
-        System.out.println("BackgroundUpdate: Exiting checkForNewGradedPosts method.");
     }
 
-    private static void checkForTargetGradeAchievement(List<Subject> oldSubjects, List<Subject> newSubjects) throws SQLException {
-        System.out.println("BackgroundUpdate: Entering checkForTargetGradeAchievement method.");
-        if (newSubjects == null || newSubjects.isEmpty()) {
-            System.out.println("BackgroundUpdate: No new subjects to check.");
+    private static void checkForTargetGradeAchievement(List<Subject> oldSubjects, List<Subject> newSubjects) throws SQLException
+    {
+        if (newSubjects == null || newSubjects.isEmpty())
+        {
             return;
         }
         Database database = new Database(); // Re-instantiate to ensure fresh data if needed
-        System.out.println("BackgroundUpdate: Database instance created for target grade check.");
-        for (Subject newSubject : newSubjects) {
-            System.out.println("BackgroundUpdate: Processing new subject: " + newSubject.getName() + " (ID: " + newSubject.getId() + ")");
-            if (oldSubjects != null) {
-                for (Subject oldSubject : oldSubjects) {
-                    if (newSubject.getId().equals(oldSubject.getId())) {
-                        System.out.println("BackgroundUpdate: Subject found in old list. Checking for target grade achievement.");
+        for (Subject newSubject : newSubjects)
+        {
+            if (oldSubjects != null)
+            {
+                for (Subject oldSubject : oldSubjects)
+                {
+                    if (newSubject.getId().equals(oldSubject.getId()))
+                    {
                         // The newSubject's average mark is already up-to-date from the database after updateDatabaseFromAPI()
-                        // No need to recalculate here.
-
-                        System.out.println("BackgroundUpdate: New subject average: " + newSubject.getAverageMark() + "%, Target: " + newSubject.getTargetMark() + "%");
-                        System.out.println("BackgroundUpdate: Old subject average: " + oldSubject.getAverageMark() + "%, Target: " + oldSubject.getTargetMark() + "%");
-
-                        if (newSubject.getAverageMark() >= newSubject.getTargetMark() && oldSubject.getAverageMark() < oldSubject.getTargetMark()) {
-                            System.out.println("BackgroundUpdate: Target grade achieved for " + newSubject.getName() + "! Showing notification.");
+                        // No need to recalculate here, just compare the values
+                        if (newSubject.getAverageMark() >= newSubject.getTargetMark() && oldSubject.getAverageMark() < oldSubject.getTargetMark())
+                        {
                             showNotification("Target Grade Achieved!", "Congratulations! You have achieved your target grade for " + newSubject.getName() + "!");
-                        } else {
-                            System.out.println("BackgroundUpdate: Target grade not yet achieved or already achieved for " + newSubject.getName() + ".");
                         }
                         break;
                     }
                 }
-            } else {
-                System.out.println("BackgroundUpdate: Old subjects list is null. Cannot compare for target grade achievement.");
             }
         }
-        System.out.println("BackgroundUpdate: Exiting checkForTargetGradeAchievement method.");
     }
 
-    private static void showNotification(String title, String message) {
+    private static void showNotification(String title, String message)
+    {
         // Use SwingUtilities.invokeLater to ensure the dialog is shown on the Event Dispatch Thread
-        System.out.println("BackgroundUpdate: Showing notification: Title='" + title + "', Message='" + message + "'");
-        SwingUtilities.invokeLater(() -> {
+        SwingUtilities.invokeLater(() ->
+        {
             JOptionPane.showMessageDialog(null, message, title, JOptionPane.INFORMATION_MESSAGE);
-            System.out.println("BackgroundUpdate: Notification dialog displayed.");
         });
     }
 }
