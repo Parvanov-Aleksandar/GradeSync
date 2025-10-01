@@ -14,6 +14,7 @@ public class Main
         try
         {
             database.initializeDatabase(); // Initializes the database
+            database.updateDatabaseFromAPI(); // Updates the database from the API
         }
         catch (SQLException | IOException e)
         {
