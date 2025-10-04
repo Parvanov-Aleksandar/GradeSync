@@ -71,6 +71,37 @@ public class GUI extends JFrame
         });
         headerPanel.add(updateButton, BorderLayout.EAST);
 
+        JButton logoutButton = new JButton("Logout");
+        logoutButton.addActionListener(new ActionListener()
+        {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                int confirm = JOptionPane.showConfirmDialog(GUI.this,
+                        "Are you sure you want to log out? This will delete your credentials and local database.",
+                        "Confirm Logout", JOptionPane.YES_NO_OPTION);
+                if (confirm == JOptionPane.YES_OPTION)
+                {
+                    try
+                    {
+                        AuthManager.deleteCredentials();
+                        database.deleteDatabase();
+                        
+                        // Restart the application
+                        dispose(); // Close the current GUI window
+                        Main.restartApplication(); // Call the static restart method in Main
+                    }
+                    catch (Exception ex)
+                    {
+                        JOptionPane.showMessageDialog(GUI.this, "Error during logout: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                        System.err.println("Error during logout: " + ex.getMessage());
+                        ex.printStackTrace();
+                    }
+                }
+            }
+        });
+        headerPanel.add(logoutButton, BorderLayout.WEST);
+
         JPanel subjectsPanel = new JPanel(); // Creates a panel for subject buttons.
         subjectsPanel.setLayout(new BoxLayout(subjectsPanel, BoxLayout.Y_AXIS)); // Sets layout for vertical arrangement.
         JScrollPane scrollPane = new JScrollPane(subjectsPanel); // Adds scrollability to the subjects panel.

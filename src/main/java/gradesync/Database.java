@@ -7,6 +7,7 @@ import com.google.api.services.classroom.model.Course;
 import com.google.api.services.classroom.model.CourseWork;
 import com.google.api.services.classroom.model.StudentSubmission;
 
+import javax.swing.JOptionPane;
 import java.io.File;
 import java.io.IOException;
 import java.sql.*;
@@ -509,6 +510,23 @@ public class Database
             pstmt.setString(2, comment); // Sets the comment parameter.
             pstmt.setString(3, postId); // Sets the post ID parameter.
             pstmt.executeUpdate(); // Executes the update.
+        }
+    }
+
+    public void deleteDatabase()
+    {
+        File dbFile = new File(DB_PATH);
+        if (dbFile.exists())
+        {
+            boolean deleted = dbFile.delete();
+            if (deleted)
+            {
+                System.out.println("Database file deleted successfully: " + DB_PATH);
+            }
+            else
+            {
+                System.err.println("Failed to delete database file: " + DB_PATH);
+            }
         }
     }
 

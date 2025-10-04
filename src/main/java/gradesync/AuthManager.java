@@ -87,4 +87,44 @@ public class AuthManager // Encapsulation
             .setApplicationName(APPLICATION_NAME)
             .build();
     }
+
+    public static void deleteCredentials()
+    {
+        try
+        {
+            if (DATA_STORE_DIR.exists())
+            {
+                deleteDirectory(DATA_STORE_DIR);
+                System.out.println("Credentials directory deleted: " + DATA_STORE_DIR.getAbsolutePath());
+            }
+            else
+            {
+                System.out.println("Credentials directory does not exist: " + DATA_STORE_DIR.getAbsolutePath());
+            }
+        }
+        catch (IOException e)
+        {
+            System.err.println("Error deleting credentials directory: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private static void deleteDirectory(java.io.File directory) throws IOException
+    {
+        if (directory.isDirectory())
+        {
+            java.io.File[] files = directory.listFiles();
+            if (files != null)
+            {
+                for (java.io.File file : files)
+                {
+                    deleteDirectory(file);
+                }
+            }
+        }
+        if (!directory.delete())
+        {
+            throw new IOException("Failed to delete file or directory: " + directory.getAbsolutePath());
+        }
+    }
 }
