@@ -4,12 +4,12 @@ GradeSync is a Java desktop application for reviewing Google Classroom coursewor
 
 ## Features
 
-- Sign in to Google using OAuth 2.0 and read courses, coursework, and the signed-in student's submissions from Google Classroom.
+- Sign in to Google using OAuth 2.0 and reads courses, coursework, and the signed-in student's submissions from Google Classroom.
 - View subjects and graded coursework in a Java Swing GUI, including marks, percentages, calculated grades, and subject averages.
-- Set a target percentage for each subject and receive a desktop notification when a new grade arrives, a grade changes, or a target is reached.
+- Sets a target percentage for each subject and receive a desktop notification when a new grade arrives, a grade changes, or a target is reached.
 - Add and save personal comments against coursework locally.
-- Store application data in SQLite through JDBC.
-- On Windows, create a Startup-folder script for background checks; the background process checks every 30 minutes.
+- Stores application data in SQLite through JDBC.
+- On Windows, creates a Startup-folder script for background checks; the background process checks every 30 minutes.
 
 ## Screenshots
 
